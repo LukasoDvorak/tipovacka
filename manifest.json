@@ -1,0 +1,22 @@
+{
+  "name": "Tipovačka MS 2026",
+  "short_name": "Tipovačka",
+  "description": "Tipuj výsledky MS 2026 a sbírej body",
+  "start_url": "/tipovacka/",
+  "scope": "/tipovacka/",
+  "display": "standalone",
+  "background_color": "#0f1629",
+  "theme_color": "#0f1629",
+  "icons": [
+    {
+      "src": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/26bd.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/svg/26bd.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
