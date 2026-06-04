@@ -827,9 +827,10 @@
 
     <div class="filter-bar">
       <div class="pill active" onclick="filterMatches('vse',this)">Vše</div>
-      <div class="pill" onclick="filterMatches('skupina',this)">Základní část</div>
-      <div class="pill" onclick="filterMatches('playoff',this)">Play off</div>
-      <div class="pill" onclick="filterMatches('nevyplnene',this)">Nevyplněné</div>
+      <div class="pill" onclick="filterMatches('brzy',this)">Brzy</div>
+      <div class="pill" onclick="filterMatches('vyplnene',this)">Vyplněné</div>
+      <div class="pill" onclick="filterMatches('neodehrane',this)">Neodehrané</div>
+      <div class="pill" onclick="filterMatches('odehrane',this)">Odehrané</div>
     </div>
 
     <div id="matches-list"></div>
@@ -1665,9 +1666,10 @@
 
   function renderMatches(f) {
     const filtered = MATCHES.filter(m => {
-      if (f === 'skupina') return m.group?.startsWith('Skupina');
-      if (f === 'playoff') return !m.group?.startsWith('Skupina');
-      if (f === 'nevyplnene') return m.status === 'open' && !m.myTip;
+      if (f === 'brzy') return MATCHES.filter(x => x.status === 'open').slice(0,4).includes(m);
+      if (f === 'vyplnene') return !!m.myTip;
+      if (f === 'neodehrane') return m.status === 'open' || m.status === 'locked';
+      if (f === 'odehrane') return m.status === 'done' || m.status === 'live';
       return true;
     });
     const list = document.getElementById('matches-list');
