@@ -1192,66 +1192,66 @@
   let currentFilter = 'vse';
   let currentOthersFilter = 'vse';
 
-  // ── Match data (demo) ──
-  const MATCHES = [
-    { id:'bra-arg', group:'Skupina A', date:'2026-06-03', time:'21:00', home:'🇧🇷 Brazílie', away:'🇦🇷 Argentina', status:'live', liveMin:67, result:{h:2,a:1}, myTip:{h:2,a:1}, myScorers:['Vinicius'], others:[{name:'Martin',tip:{h:2,a:0},scorers:'Vinicius'},{name:'Tomáš',tip:{h:1,a:1},scorers:'Messi'},{name:'Petra',tip:{h:2,a:1},scorers:'—'}] },
-    { id:'fra-eng', group:'Skupina B', date:'2026-06-03', time:'20:00', home:'🇫🇷 Francie', away:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Anglie', status:'live', liveMin:23, result:{h:1,a:0}, myTip:{h:2,a:1}, myScorers:['Mbappé'], others:[{name:'Martin',tip:{h:1,a:1},scorers:'Kane'},{name:'Tomáš',tip:{h:2,a:0},scorers:'Mbappé'},{name:'Petra',tip:{h:3,a:1},scorers:'—'}] },
-    { id:'ger-mex', group:'Skupina C', date:'2026-06-01', time:'15:00', home:'🇩🇪 Německo', away:'🇲🇽 Mexiko', status:'done', result:{h:3,a:1}, myTip:{h:2,a:0}, myScorers:[], others:[{name:'Martin',tip:{h:3,a:1},scorers:'Müller, Kane'},{name:'Tomáš',tip:{h:2,a:1},scorers:'—'},{name:'Petra',tip:{h:1,a:0},scorers:'Müller'}] },
-    { id:'esp-por', group:'Skupina D', date:'2026-06-01', time:'18:00', home:'🇪🇸 Španělsko', away:'🇵🇹 Portugalsko', status:'done', result:{h:1,a:1}, myTip:{h:2,a:0}, myScorers:[], others:[{name:'Martin',tip:{h:1,a:1},scorers:'Morata'},{name:'Tomáš',tip:{h:0,a:1},scorers:'Ronaldo'},{name:'Petra',tip:{h:1,a:2},scorers:'—'}] },
-    { id:'ned-bel', group:'Skupina E', date:'2026-06-02', time:'21:00', home:'🇳🇱 Nizozemsko', away:'🇧🇪 Belgie', status:'done', result:{h:2,a:2}, myTip:{h:3,a:1}, myScorers:[], others:[{name:'Martin',tip:{h:2,a:1},scorers:'De Bruyne'},{name:'Tomáš',tip:{h:1,a:2},scorers:'—'},{name:'Petra',tip:{h:2,a:2},scorers:'De Bruyne'}] },
-    { id:'usa-can', group:'Skupina F', date:'2026-06-05', time:'18:00', home:'🇺🇸 USA', away:'🇨🇦 Kanada', status:'locked', kicksInMin:90, myTip:{h:2,a:1}, myScorers:[], others:[{name:'Martin',tip:{h:1,a:0},scorers:'—'},{name:'Tomáš',tip:{h:2,a:2},scorers:'—'},{name:'Petra',tip:{h:3,a:0},scorers:'—'}] },
-    { id:'jpn-kor', group:'Skupina G', date:'2026-06-05', time:'15:00', home:'🇯🇵 Japonsko', away:'🇰🇷 Korea', status:'open', myTip:null, myScorers:[], others:null },
-    { id:'ita-cro', group:'Skupina H', date:'2026-06-06', time:'21:00', home:'🇮🇹 Itálie', away:'🇭🇷 Chorvatsko', status:'open', myTip:null, myScorers:[], others:null },
-  ];
+  // ── Match data (načítá se z DB) ──
+  let MATCHES = [];
+  let squads = {};
+  let savedScorers = {};
 
-  // Soupisky (demo data — v produkci z API)
-  const squads = {
-    'fra-eng': {
-      match: 'Francie vs Anglie',
-      team1: { name: '🇫🇷 Francie', players: [
-        {num:10, name:'Mbappé', pos:'Útočník'},
-        {num:7,  name:'Griezmann', pos:'Záložník'},
-        {num:11, name:'Dembélé', pos:'Záložník'},
-        {num:9,  name:'Giroud', pos:'Útočník'},
-        {num:22, name:'Camavinga', pos:'Záložník'},
-        {num:6,  name:'Rabiot', pos:'Záložník'},
-        {num:21, name:'Hernandez', pos:'Obránce'},
-      ]},
-      team2: { name: '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Anglie', players: [
-        {num:22, name:'Bellingham', pos:'Záložník'},
-        {num:9,  name:'Kane', pos:'Útočník'},
-        {num:7,  name:'Saka', pos:'Záložník'},
-        {num:47, name:'Foden', pos:'Záložník'},
-        {num:10, name:'Rashford', pos:'Útočník'},
-        {num:19, name:'Mount', pos:'Záložník'},
-        {num:5,  name:'Maguire', pos:'Obránce'},
-      ]},
-    },
-    'esp-por': {
-      match: 'Španělsko vs Portugalsko',
-      team1: { name: '🇪🇸 Španělsko', players: [
-        {num:19, name:'Yamal', pos:'Záložník'},
-        {num:7,  name:'Morata', pos:'Útočník'},
-        {num:8,  name:'Pedri', pos:'Záložník'},
-        {num:10, name:'Olmo', pos:'Záložník'},
-        {num:22, name:'Williams', pos:'Záložník'},
-        {num:6,  name:'Gavi', pos:'Záložník'},
-      ]},
-      team2: { name: '🇵🇹 Portugalsko', players: [
-        {num:7,  name:'Ronaldo', pos:'Útočník'},
-        {num:11, name:'Félix', pos:'Útočník'},
-        {num:17, name:'Leão', pos:'Záložník'},
-        {num:8,  name:'B. Fernandes', pos:'Záložník'},
-        {num:10, name:'R. Neves', pos:'Záložník'},
-        {num:9,  name:'Gonçalves', pos:'Záložník'},
-      ]},
-    },
-  };
+  // Převod DB záznamu na interní formát
+  function dbMatchToInternal(m) {
+    const kickoff = new Date(m.kickoff_at);
+    const now = new Date();
+    const oneHourBefore = new Date(kickoff.getTime() - 60 * 60 * 1000);
+    let status = m.status; // 'open', 'live', 'done'
+    if (status === 'open' && now >= oneHourBefore) status = 'locked';
+    const date = kickoff.toLocaleDateString('cs-CZ', { timeZone: 'Europe/Prague', day:'2-digit', month:'2-digit', year:'numeric' });
+    const time = kickoff.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' });
+    return {
+      id: String(m.id),
+      group: m.group_name || '',
+      date, time,
+      home: m.home_team,
+      away: m.away_team,
+      status,
+      kickoff_at: m.kickoff_at,
+      result: (m.home_score !== null && m.away_score !== null) ? { h: m.home_score, a: m.away_score } : null,
+      myTip: null,
+      myScorers: [],
+      others: null,
+    };
+  }
+
+  async function loadMatchesFromDB() {
+    const { data, error } = await sb.from('matches').select('*').order('kickoff_at');
+    if (error || !data) return;
+    MATCHES = data.map(dbMatchToInternal);
+  }
+
+  async function loadOthers() {
+    if (!currentUser) return;
+    const closedIds = MATCHES.filter(m => m.status !== 'open').map(m => m.id);
+    if (!closedIds.length) return;
+    const [{ data: allTips }, { data: allScorerTips }, { data: profiles }] = await Promise.all([
+      sb.from('tips').select('*').in('match_id', closedIds),
+      sb.from('scorer_tips').select('*').in('match_id', closedIds),
+      sb.from('profiles').select('id, display_name'),
+    ]);
+    const profileMap = {};
+    if (profiles) profiles.forEach(p => profileMap[p.id] = p.display_name);
+    MATCHES.forEach(m => {
+      if (m.status === 'open') return;
+      const matchTips = (allTips || []).filter(t => t.match_id === m.id && t.user_id !== currentUser.id);
+      const matchScorerTips = (allScorerTips || []).filter(s => s.match_id === m.id);
+      m.others = matchTips.map(t => ({
+        name: profileMap[t.user_id] || 'Hráč',
+        tip: { h: t.home_score, a: t.away_score },
+        scorers: matchScorerTips.filter(s => s.user_id === t.user_id).map(s => s.player_name).join(', ') || '—',
+      }));
+    });
+  }
 
   // Uložené výběry střelců per zápas
-  const savedScorers = {
-    'fra-eng': new Set(['Mbappé']),
-    'esp-por': new Set(),
+  savedScorers = {
   };
 
   // ── Auth ──
@@ -1335,7 +1335,7 @@
     document.getElementById('page-login').style.display = 'flex';
   }
 
-  function showApp(profile) {
+  async function showApp(profile) {
     currentProfile = profile;
 
     // Neschválený hráč vidí čekací obrazovku
@@ -1349,6 +1349,10 @@
     const app = document.getElementById('app');
     app.style.display = window.innerWidth >= 900 ? 'grid' : 'block';
     app.classList.add('app-visible');
+
+    // Načti zápasy z DB
+    await loadMatchesFromDB();
+
     updateQuotaUI();
     renderMatches('vse');
     renderOthers('vse');
@@ -1390,7 +1394,9 @@
       MY_PRE.finalist = preTip.finalist_team || '';
       MY_PRE.scorer = preTip.top_scorer || '';
     }
+    await loadOthers();
     renderMatches(currentFilter);
+    renderOthers(currentOthersFilter);
     updateQuotaUI();
     renderPreTournament();
   }
@@ -1883,12 +1889,37 @@
   }
 
   // ── Scorer Modal ──
-  function openScorerModal(matchId) {
+  async function openScorerModal(matchId) {
     currentMatchId = matchId;
-    const squad = squads[matchId];
-    if (!squad) return;
 
-    modalSelected = new Set(savedScorers[matchId]);
+    // Načti soupisku z DB pokud ji nemáme
+    if (!squads[matchId]) {
+      const m = MATCHES.find(x => x.id === matchId);
+      if (!m) return;
+      // Extrahuj název týmu bez emoji (vše za první mezerou)
+      const homeName = m.home.split(' ').slice(1).join(' ').trim();
+      const awayName = m.away.split(' ').slice(1).join(' ').trim();
+      const { data: players } = await sb.from('players')
+        .select('*')
+        .in('team_name', [homeName, awayName]);
+      if (!players || players.length === 0) {
+        showToast('Soupiska není k dispozici');
+        return;
+      }
+      squads[matchId] = {
+        match: `${m.home} vs ${m.away}`,
+        team1: { name: m.home, players: players.filter(p => p.team_name === homeName).map(p => ({ num: p.shirt_number || '—', name: p.player_name, pos: p.position || '' })) },
+        team2: { name: m.away, players: players.filter(p => p.team_name === awayName).map(p => ({ num: p.shirt_number || '—', name: p.player_name, pos: p.position || '' })) },
+      };
+    }
+
+    const squad = squads[matchId];
+    if (!squad.team1.players.length && !squad.team2.players.length) {
+      showToast('Soupiska není k dispozici');
+      return;
+    }
+
+    modalSelected = new Set(savedScorers[matchId] || []);
     document.getElementById('modal-title').textContent = squad.match;
     updateModalQuota();
 
