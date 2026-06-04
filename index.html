@@ -1336,8 +1336,6 @@
     renderMatches('vse');
     renderOthers('vse');
     renderPrizePool();
-    renderDesktopPanels();
-    renderLiveLeaderboard();
     renderPreTournament();
     loadUserData();
     initNotifications();
@@ -1452,7 +1450,6 @@
         scorerTokens: tokenMap[p.id] || 0,
       }));
       renderLiveLeaderboard();
-      renderDesktopPanels();
       renderPrizePool();
     }
   }
