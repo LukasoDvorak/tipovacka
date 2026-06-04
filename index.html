@@ -760,7 +760,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b20</span>
+        <span style="color:var(--border)">b21</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -2488,12 +2488,16 @@
 
   function setNotifGranted() {
     const btn = document.getElementById('notif-btn');
-    const banner = document.getElementById('notif-banner');
+    if (!btn) return;
     btn.textContent = '✓ Povoleno';
-    btn.className = 'notif-btn granted';
-    btn.onclick = showDemoNotification;
-    document.querySelector('.notif-text strong').textContent = 'Notifikace zapnuty';
-    document.querySelector('.notif-text span').textContent = 'Připomeneme ti každý zápas ráno v 9:00';
+    btn.style.background = 'var(--green)';
+    btn.style.opacity = '0.85';
+    btn.style.cursor = 'default';
+    btn.onclick = null;
+    const strong = document.querySelector('.notif-text strong');
+    const span = document.querySelector('.notif-text span');
+    if (strong) strong.textContent = 'Notifikace zapnuty';
+    if (span) span.textContent = 'Připomeneme ti každý zápas ráno v 9:00';
   }
 
   function setNotifDenied() {
