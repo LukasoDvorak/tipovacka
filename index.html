@@ -930,7 +930,7 @@
   <!-- OSTATNÍ TIPY -->
   <div class="page" id="page-ostatni">
     <div class="filter-bar">
-      <div class="pill active" onclick="filterOthers('vse',this)">Všechny zápasy</div>
+      <div class="pill active" onclick="filterOthers('vse',this)">Vše</div>
       <div class="pill" onclick="filterOthers('hotove',this)">Hotové</div>
       <div class="pill" onclick="filterOthers('live',this)">Live</div>
       <div class="pill" onclick="filterOthers('brzy',this)">Brzy</div>
@@ -1124,14 +1124,6 @@
     <div class="right-panel-title">🏆 Živá tabulka</div>
     <div id="desktop-lb"></div>
 
-    <div style="margin-top:24px; background:var(--surface2); border-radius:var(--radius); padding:12px; border:1px solid var(--border)">
-      <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">⚽ Střelecké žetony</div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:13px;color:var(--muted)">Skupinová fáze</span>
-        <span id="dsk-quota" style="font-size:16px;font-weight:800;color:var(--green)">18 / 24</span>
-      </div>
-      <div class="quota-progress" style="margin-top:8px"><div id="dsk-quota-fill" class="quota-fill" style="width:25%"></div></div>
-    </div>
   </div>
 
 </div><!-- /app -->
@@ -1820,7 +1812,7 @@
     const upcomingOpen = MATCHES.filter(m => m.status === 'open').slice(0, 4);
 
     const filtered = MATCHES.filter(m => {
-      if (f === 'vse') return m.status !== 'open' || upcomingOpen.includes(m);
+      if (f === 'vse') return true;
       if (f === 'hotove') return m.status === 'done';
       if (f === 'live') return m.status === 'live';
       if (f === 'brzy') return m.status === 'locked' || upcomingOpen.includes(m);
