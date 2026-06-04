@@ -765,7 +765,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b47</span>
+        <span style="color:var(--border)">b48</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -1052,7 +1052,7 @@
       </div>
     </div>
 
-    <button class="save-btn" style="margin-top:8px;background:var(--accent)" onclick="showToast('Body přepočítány pro všechny hráče ✓')">
+    <button class="save-btn" style="margin-top:8px;background:var(--accent)" onclick="recalcAllPoints()">
       🔄 Přepočítat body všech hráčů
     </button>
   </div><!-- /main-content -->
@@ -1141,9 +1141,18 @@
   }
 
   async function loadMatchesFromDB() {
-    const { data, error } = await sb.from('matches').select('*').order('kickoff_at');
+    const [{ data, error }, { data: goals }] = await Promise.all([
+      sb.from('matches').select('*').order('kickoff_at'),
+      sb.from('goals').select('match_id, player_name'),
+    ]);
     if (error || !data) return;
-    MATCHES = data.map(dbMatchToInternal);
+    // Seskup góly per zápas
+    const goalMap = {};
+    if (goals) goals.forEach(g => {
+      if (!goalMap[g.match_id]) goalMap[g.match_id] = [];
+      goalMap[g.match_id].push(g.player_name);
+    });
+    MATCHES = data.map(m => ({ ...dbMatchToInternal(m), goalScorers: goalMap[m.id] || [] }));
   }
 
   async function loadOthers() {
@@ -1334,13 +1343,24 @@
 
   async function updateMyStats() {
     if (!currentUser) return;
-    const { data } = await sb.from('leaderboard').select('*');
-    if (!data) return;
-    const me = data.find(p => p.id === currentUser.id);
-    const rank = me ? data.indexOf(me) + 1 : null;
-    document.getElementById('stat-pts').textContent = me ? me.total_points : 0;
-    document.getElementById('stat-tips').textContent = me ? `${me.exact_scores}/${me.tips_count}` : '0/0';
-    document.getElementById('stat-rank').textContent = rank ? `#${rank}` : '#—';
+    // Počítej body dynamicky z MATCHES
+    let totalPts = 0, exact = 0, tipsCount = 0;
+    MATCHES.forEach(m => {
+      if (!m.myTip || !m.result) return;
+      tipsCount++;
+      const pts = calcTipPoints(m.myTip, m.result);
+      const scorerPts = (m.myScorers || []).filter(s => (m.goalScorers || []).includes(s)).length * 3;
+      totalPts += pts + scorerPts;
+      if (pts === 5) exact++;
+    });
+    document.getElementById('stat-pts').textContent = totalPts;
+    document.getElementById('stat-tips').textContent = `${exact}/${tipsCount}`;
+    // Pořadí z leaderboard view
+    const { data } = await sb.from('leaderboard').select('id');
+    if (data) {
+      const rank = data.findIndex(p => p.id === currentUser.id) + 1;
+      document.getElementById('stat-rank').textContent = rank > 0 ? `#${rank}` : '#—';
+    }
   }
 
   async function saveTipToDb(matchId) {
@@ -1405,6 +1425,43 @@
       renderLiveLeaderboard();
       renderPrizePool();
     }
+  }
+
+  async function recalcAllPoints() {
+    showToast('Přepočítávám body…');
+    // Načti všechny dohráné zápasy
+    const { data: doneMatches } = await sb.from('matches').select('*').eq('status','done');
+    if (!doneMatches?.length) { showToast('Žádné dohráné zápasy'); return; }
+
+    // Načti všechny tipy a góly
+    const { data: allTips } = await sb.from('tips').select('*');
+    const { data: allGoals } = await sb.from('goals').select('*');
+    const { data: allScorerTips } = await sb.from('scorer_tips').select('*');
+
+    let updated = 0;
+    for (const match of doneMatches) {
+      const result = { h: match.home_score, a: match.away_score };
+      const matchGoals = (allGoals || []).filter(g => g.match_id === match.id).map(g => g.player_name);
+
+      // Přepočti tip body
+      const matchTips = (allTips || []).filter(t => t.match_id === match.id);
+      for (const tip of matchTips) {
+        const pts = calcTipPoints({ h: tip.home_score, a: tip.away_score }, result);
+        await sb.from('tips').update({ points: pts }).eq('id', tip.id);
+        updated++;
+      }
+
+      // Přepočti střelec body
+      const matchScorerTips = (allScorerTips || []).filter(s => s.match_id === match.id);
+      for (const st of matchScorerTips) {
+        const pts = matchGoals.includes(st.player_name) ? 3 : 0;
+        await sb.from('scorer_tips').update({ points: pts }).eq('id', st.id);
+      }
+    }
+
+    showToast(`✓ Přepočítáno ${updated} tipů`);
+    loadLeaderboard();
+    updateMyStats();
   }
 
   function renderLiveLeaderboard() {
@@ -1631,15 +1688,23 @@
     list.innerHTML = filtered.map(m => renderMatchCard(m)).join('');
   }
 
+  function calcTipPoints(tip, result) {
+    if (!tip || !result) return null;
+    if (tip.h === result.h && tip.a === result.a) return 5;
+    const tipOut = tip.h > tip.a ? 'H' : tip.h === tip.a ? 'D' : 'A';
+    const resOut = result.h > result.a ? 'H' : result.h === result.a ? 'D' : 'A';
+    return tipOut === resOut ? 2 : 0;
+  }
+
   function renderMatchCard(m) {
     const isLocked = m.status !== 'open';
     const statusHtml = m.status === 'live'
-      ? `<span class="match-status live">● LIVE ${m.liveMin}'</span>`
+      ? `<span class="match-status live">● LIVE</span>`
       : m.status === 'done'
       ? `<span class="match-status done">Hotovo</span>`
       : m.status === 'locked'
-      ? `<span class="match-status" style="color:var(--yellow)">🔒 Uzavřeno · za ${m.kicksInMin} min</span>`
-      : `<span class="match-status open">Otevřeno${m.closesIn ? ` · zavírá za ${m.closesIn}` : ''}</span>`;
+      ? `<span class="match-status" style="color:var(--yellow)">🔒 Uzavřeno</span>`
+      : `<span class="match-status open">Otevřeno</span>`;
 
     const isSaved = !!m.myTip && !editingMatches.has(m.id);
     const canTip = m.status === 'open' && !isSaved;
@@ -1670,15 +1735,17 @@
       </div>`;
     } else if (m.status !== 'open') {
       const isDone = m.status === 'done';
-      const pts = isDone ? (m.myTip?.h === m.result.h && m.myTip?.a === m.result.a ? 5 : (m.myTip?.h > m.myTip?.a) === (m.result.h > m.result.a) ? 2 : 0) : null;
-      // Live = žlutě (předběžné), Done = zeleně/červeně (finální)
-      const dotClass = !isDone ? 'partial' : pts >= 5 ? 'correct' : pts >= 2 ? 'partial' : 'wrong';
-      const ptsColor = !isDone ? 'var(--yellow)' : pts >= 2 ? 'var(--green)' : 'var(--red)';
-      const ptsLabel = !isDone ? '? b' : `+${pts} b`;
-      const statusLabel = !isDone ? 'Probíhá · předběžně' : pts >= 5 ? 'Přesné skóre' : pts >= 2 ? 'Správný vítěz' : 'Špatně';
+      const tipPts = calcTipPoints(m.myTip, m.result);
+      const scorerPts = (m.myScorers || []).filter(s => (m.goalScorers || []).includes(s)).length * 3;
+      const totalPts = tipPts !== null ? tipPts + scorerPts : null;
+      const dotClass = tipPts === null ? 'partial' : tipPts >= 5 ? 'correct' : tipPts >= 2 ? 'partial' : 'wrong';
+      const ptsColor = !isDone ? 'var(--yellow)' : tipPts >= 2 ? 'var(--green)' : 'var(--red)';
+      const tipLabel = tipPts === null ? 'Probíhá' : tipPts >= 5 ? 'Přesné skóre' : tipPts >= 2 ? 'Správný vítěz' : 'Špatně';
+      const ptsLabel = totalPts === null ? '? b' : `+${totalPts} b`;
+      const scorerLabel = scorerPts > 0 ? ` · ⚽ +${scorerPts} b` : '';
       footerHtml = `<div class="tip-result">
         <div class="tip-dot ${dotClass}"></div>
-        <span>${statusLabel}</span>
+        <span>${tipLabel}${scorerLabel}</span>
         <span class="pts-badge" style="color:${ptsColor};margin-left:auto">${ptsLabel}</span>
       </div>`;
     } else {
@@ -1799,9 +1866,9 @@
         const hasResult = !!m.result;
         const isLive = m.status === 'live';
         const isDone = m.status === 'done';
-        const correct = hasResult && p.tip.h === m.result.h && p.tip.a === m.result.a;
-        const partial = hasResult && !correct && (p.tip.h > p.tip.a) === (m.result.h > m.result.a);
-        const pts = correct ? 5 : partial ? 2 : 0;
+        const pts = hasResult ? calcTipPoints(p.tip, m.result) : null;
+        const correct = pts === 5;
+        const partial = pts === 2;
         let ptsHtml;
         if (!hasResult) {
           ptsHtml = `<span class="compare-pts zero">?</span>`;
@@ -2451,8 +2518,9 @@
     ];
     document.getElementById('tdm-rows').innerHTML = all.map(p => {
       if (!p.tip) return `<div class="tdm-row ${p.isMe?'me':''}"><span class="tdm-name">${p.name}${p.isMe?' 👤':''}</span><span class="tdm-score" style="color:var(--muted)">—</span><span class="tdm-scorer">bez tipu</span><span class="tdm-pts z">0 b</span></div>`;
-      const correct = m.result && p.tip.h === m.result.h && p.tip.a === m.result.a;
-      const partial = m.result && !correct && (p.tip.h > p.tip.a) === (m.result.h > m.result.a);
+      const tipPts2 = m.result ? calcTipPoints(p.tip, m.result) : null;
+      const correct = tipPts2 === 5;
+      const partial = tipPts2 === 2;
       const pts = correct ? 5 : partial ? 2 : 0;
       const cls = correct ? 'g' : partial ? 'y' : 'z';
       return `<div class="tdm-row ${p.isMe?'me':''}">
