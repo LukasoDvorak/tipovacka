@@ -765,7 +765,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b50</span>
+        <span style="color:var(--border)">b51</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -1853,9 +1853,12 @@
         const hasResult = !!m.result;
         const isLive = m.status === 'live';
         const isDone = m.status === 'done';
-        const pts = hasResult ? calcTipPoints(p.tip, m.result) : null;
-        const correct = pts === 5;
-        const partial = pts === 2;
+        const tipPts = hasResult ? calcTipPoints(p.tip, m.result) : null;
+        const scorerNames = p.isMe ? (m.myScorers || []) : (p.scorers && p.scorers !== '—' ? p.scorers.split(', ') : []);
+        const scorerPts = hasResult ? scorerNames.filter(s => (m.goalScorers || []).includes(s)).length * 3 : 0;
+        const pts = tipPts !== null ? tipPts + scorerPts : null;
+        const correct = tipPts === 5;
+        const partial = tipPts === 2;
         let ptsHtml;
         if (!hasResult) {
           ptsHtml = `<span class="compare-pts zero">?</span>`;
