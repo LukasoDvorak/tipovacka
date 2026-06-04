@@ -824,15 +824,6 @@
       <button class="notif-btn" id="notif-btn" onclick="requestNotifPermission()">Povolit</button>
     </div>
 
-    <div class="quota-bar">
-      <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="quota-label">⚽ Střelecké žetony (skupinová fáze)</span>
-          <span class="quota-val ok" id="quota-display">18 / 24</span>
-        </div>
-        <div class="quota-progress"><div class="quota-fill" id="quota-fill" style="width:25%"></div></div>
-      </div>
-    </div>
 
     <div class="filter-bar">
       <div class="pill active" onclick="filterMatches('vse',this)">Vše</div>
@@ -1353,7 +1344,6 @@
     // Načti zápasy z DB
     await loadMatchesFromDB();
 
-    updateQuotaUI();
     renderMatches('vse');
     renderOthers('vse');
     renderPrizePool();
