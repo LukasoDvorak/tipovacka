@@ -760,7 +760,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b16</span>
+        <span style="color:var(--border)">b17</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -845,78 +845,7 @@
 
     <div class="section-title">Celkové pořadí</div>
     <div class="card" id="leaderboard-rows">
-      <div class="lb-row">
-        <div class="lb-rank gold">🥇</div>
-        <div class="lb-avatar">🧑</div>
-        <div style="flex:1">
-          <div class="lb-name">Martin <span class="badge badge-you" style="display:none">ty</span></div>
-          <div class="lb-detail">12 tipů · 5× přesné skóre</div>
-        </div>
-        <div style="text-align:right">
-          <div class="lb-pts">102</div>
-          <div class="lb-pts-label">bodů</div>
-        </div>
-      </div>
-      <div class="lb-row me">
-        <div class="lb-rank silver">🥈</div>
-        <div class="lb-avatar">😎</div>
-        <div style="flex:1">
-          <div class="lb-name">Lukáš <span class="badge badge-you">ty</span></div>
-          <div class="lb-detail">12 tipů · 3× přesné skóre</div>
-        </div>
-        <div style="text-align:right">
-          <div class="lb-pts">87</div>
-          <div class="lb-pts-label">bodů</div>
-        </div>
-      </div>
-      <div class="lb-row">
-        <div class="lb-rank bronze">🥉</div>
-        <div class="lb-avatar">🧔</div>
-        <div style="flex:1">
-          <div class="lb-name">Tomáš</div>
-          <div class="lb-detail">11 tipů · 2× přesné skóre</div>
-        </div>
-        <div style="text-align:right">
-          <div class="lb-pts">74</div>
-          <div class="lb-pts-label">bodů</div>
-        </div>
-      </div>
-      <div class="lb-row">
-        <div class="lb-rank">4</div>
-        <div class="lb-avatar">👩</div>
-        <div style="flex:1">
-          <div class="lb-name">Petra</div>
-          <div class="lb-detail">12 tipů · 1× přesné skóre</div>
-        </div>
-        <div style="text-align:right">
-          <div class="lb-pts">61</div>
-          <div class="lb-pts-label">bodů</div>
-        </div>
-      </div>
-      <div class="lb-row">
-        <div class="lb-rank">5</div>
-        <div class="lb-avatar">🧑‍🦱</div>
-        <div style="flex:1">
-          <div class="lb-name">Ondřej</div>
-          <div class="lb-detail">10 tipů · 0× přesné skóre</div>
-        </div>
-        <div style="text-align:right">
-          <div class="lb-pts">48</div>
-          <div class="lb-pts-label">bodů</div>
-        </div>
-      </div>
-      <div class="lb-row">
-        <div class="lb-rank">6</div>
-        <div class="lb-avatar">🧑‍🦲</div>
-        <div style="flex:1">
-          <div class="lb-name">Karel</div>
-          <div class="lb-detail">9 tipů · 0× přesné skóre</div>
-        </div>
-        <div style="text-align:right">
-          <div class="lb-pts">32</div>
-          <div class="lb-pts-label">bodů</div>
-        </div>
-      </div>
+      <div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Načítám…</div>
     </div>
 
     <div style="text-align:center;padding:12px 0 4px">
@@ -1648,7 +1577,7 @@
     document.getElementById('tab-' + name)?.classList.add('active');
     document.getElementById('dsk-' + name)?.classList.add('active');
     document.getElementById('page-' + name).classList.add('active');
-    if (name === 'leaderboard') renderPrizePool();
+    if (name === 'leaderboard') { loadLeaderboard(); renderPrizePool(); }
     if (name === 'msinfo') renderMsContent(currentMsView);
     // Na MS Info schováme pravý panel — není potřeba
     const rightPanel = document.getElementById('desktop-right');
@@ -2087,13 +2016,7 @@
   // ── Pre-tournament ──
   let PRE_LOCKED = false;
   const MY_PRE = { winner: '', finalist: '', scorer: '' };
-  const OTHERS_PRE = [
-    { name: 'Martin',  winner: '🇧🇷 Brazílie',   finalist: '🇦🇷 Argentina',  scorer: 'Vinicius Jr. 🇧🇷' },
-    { name: 'Tomáš',   winner: '🇩🇪 Německo',    finalist: '🇫🇷 Francie',    scorer: 'Mbappé 🇫🇷' },
-    { name: 'Petra',   winner: '🇫🇷 Francie',    finalist: '🇵🇹 Portugalsko', scorer: 'Ronaldo 🇵🇹' },
-    { name: 'Ondřej',  winner: '🇦🇷 Argentina',  finalist: '🇧🇷 Brazílie',   scorer: 'Messi 🇦🇷' },
-    { name: 'Karel',   winner: '🇧🇷 Brazílie',   finalist: '🇩🇪 Německo',    scorer: 'Müller 🇩🇪' },
-  ];
+  const OTHERS_PRE = []; // načítá se z DB
   let TEAMS = [];
   let SCORERS_LIST = [];
 
@@ -2351,14 +2274,7 @@
     medium: { maxPlayers: 19, tiers: [{pct:0,    label:'Vklad zpět'},  {pct:15, label:'15 % zbytku'}, {pct:35, label:'35 % zbytku'}, {pct:50, label:'50 % zbytku'}] },
     large:  { maxPlayers: 999,tiers: [{pct:0,    label:'Vklad zpět'},  {pct:10, label:'10 % zbytku'}, {pct:20, label:'20 % zbytku'}, {pct:30, label:'30 % zbytku'}, {pct:40, label:'40 % zbytku'}] },
   };
-  const LEADERBOARD = [
-    { name:'Martin', pts:102, isMe:false },
-    { name:'Lukáš',  pts:87,  isMe:true  },
-    { name:'Tomáš',  pts:74,  isMe:false },
-    { name:'Petra',  pts:61,  isMe:false },
-    { name:'Ondřej', pts:48,  isMe:false },
-    { name:'Karel',  pts:32,  isMe:false },
-  ];
+  let LEADERBOARD = []; // načítá se z DB
   const MEDALS = ['🥇','🥈','🥉','4.','5.'];
   const AMOUNT_CLS = ['gold','silver','bronze','other','other'];
 
