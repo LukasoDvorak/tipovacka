@@ -765,7 +765,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b45</span>
+        <span style="color:var(--border)">b46</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -1758,7 +1758,7 @@
         <button onclick="openScorerModal('${m.id}','home')" style="flex:1;background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:5px;font-size:11px;cursor:pointer">⚽ Střelci domácí</button>
         <button onclick="openScorerModal('${m.id}','away')" style="flex:1;background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:5px;font-size:11px;cursor:pointer">⚽ Střelci hosté</button>
       </div>` : ''}
-      ${m.myScorers?.length && m.status === 'open' ? `<div style="text-align:center;padding:4px 16px 0;font-size:11px;color:var(--accent)">⚽ ${m.myScorers.join(', ')}</div>` : ''}
+      ${m.status === 'open' || isSaved ? `<div style="text-align:center;padding:4px 16px 0;font-size:11px;color:${m.myScorers?.length ? 'var(--accent)' : 'var(--muted)'}">⚽ ${m.myScorers?.length ? m.myScorers.join(', ') : 'Střelci nevybráni'}</div>` : ''}
       <div class="match-footer">${footerHtml}${othersHtml}</div>
     </div>`;
   }
