@@ -760,7 +760,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b21</span>
+        <span style="color:var(--border)">b22</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -2434,20 +2434,20 @@
 
   // ── Notifications ──
   async function initNotifications() {
-    if (!('Notification' in window)) {
-      document.getElementById('notif-banner').style.display = 'none';
-      return;
-    }
-    const perm = Notification.permission;
-    if (perm === 'granted') {
-      setNotifGranted();
-    } else if (perm === 'denied') {
-      setNotifDenied();
-    }
-    // Register service worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/tipovacka/sw.js').catch(() => {});
     }
+    // Počkej až bude DOM připravený
+    setTimeout(() => {
+      if (!('Notification' in window)) {
+        const b = document.getElementById('notif-banner');
+        if (b) b.style.display = 'none';
+        return;
+      }
+      const perm = Notification.permission;
+      if (perm === 'granted') setNotifGranted();
+      else if (perm === 'denied') setNotifDenied();
+    }, 300);
   }
 
   const VAPID_PUBLIC_KEY = 'HnozXirAbE5ZUdko9-snURSIBt92qzYqAbrvKT-tdR8fbnZ0eiGB3aWJ9DUIywumMtcGfco3p9c2W1rl_cFidQ';
