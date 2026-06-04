@@ -760,7 +760,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b31</span>
+        <span style="color:var(--border)">b32</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -1685,11 +1685,7 @@
           <span style="color:var(--text);font-weight:500">${hintText}</span>
           ${hintBonus ? `<span style="color:var(--muted)">${hintBonus}</span>` : ''}
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-size:11px;color:var(--muted)">⚽ Střelci · +3 b</span>
-          <span style="font-size:11px;color:${QUOTA_MAX - quotaUsed <= 0 ? 'var(--red)' : QUOTA_MAX - quotaUsed <= 4 ? 'var(--yellow)' : 'var(--muted)'}">zbývá ${QUOTA_MAX - quotaUsed} žetonů</span>
-        </div>
-        <div id="selected-scorers-${m.id}" style="display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 10px"></div>
+        <div style="font-size:11px;color:${QUOTA_MAX - quotaUsed <= 0 ? 'var(--red)' : QUOTA_MAX - quotaUsed <= 4 ? 'var(--yellow)' : 'var(--muted)'};text-align:right;margin-bottom:6px">⚽ zbývá ${QUOTA_MAX - quotaUsed} žetonů</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px">🔒 Tipy ostatních se zobrazí po uzavření</div>
         ${isSaved
           ? `<button class="save-btn" style="background:var(--surface2);color:var(--muted);border:1px solid var(--border)" onclick="editTip('${m.id}')">✏️ Upravit tip</button>`
@@ -1741,12 +1737,14 @@
           <div class="team-flag" style="font-size:28px">${m.home.split(' ')[0]}</div>
           <div class="team-name">${m.home.split(' ').slice(1).join(' ')}</div>
           ${canTip ? `<button onclick="openScorerModal('${m.id}','home')" style="margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">⚽ Střelci</button>` : ''}
+          <div id="scorers-home-${m.id}" style="margin-top:4px;font-size:10px;color:var(--accent);min-height:14px;text-align:center">${(m.myScorers||[]).filter(s => (squads[m.id]?.team1?.players||[]).some(p=>p.name===s)).join(', ')}</div>
         </div>
         <div class="vs-block">${scoreHtml}</div>
         <div class="team">
           <div class="team-flag" style="font-size:28px">${m.away.split(' ')[0]}</div>
           <div class="team-name">${m.away.split(' ').slice(1).join(' ')}</div>
           ${canTip ? `<button onclick="openScorerModal('${m.id}','away')" style="margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">⚽ Střelci</button>` : ''}
+          <div id="scorers-away-${m.id}" style="margin-top:4px;font-size:10px;color:var(--accent);min-height:14px;text-align:center">${(m.myScorers||[]).filter(s => (squads[m.id]?.team2?.players||[]).some(p=>p.name===s)).join(', ')}</div>
         </div>
       </div>
       <div class="match-footer">${footerHtml}${othersHtml}</div>
@@ -1950,16 +1948,15 @@
   }
 
   function updateScorerDisplay(matchId) {
-    const el = document.getElementById('selected-scorers-' + matchId);
-    if (!el) return;
-    const names = [...savedScorers[matchId]];
-    if (names.length === 0) {
-      el.innerHTML = '<span style="color:var(--muted);font-size:12px">Žádný střelec nevybrán</span>';
-    } else {
-      el.innerHTML = names.map(n =>
-        `<div class="scorer-chip selected" onclick="removeScorerFromChip('${matchId}','${n}')">${n} <span style="opacity:.6;font-size:10px">× odebrat</span></div>`
-      ).join('');
-    }
+    const names = [...(savedScorers[matchId] || [])];
+    const squad = squads[matchId];
+    const homeEl = document.getElementById('scorers-home-' + matchId);
+    const awayEl = document.getElementById('scorers-away-' + matchId);
+    if (homeEl) homeEl.textContent = names.filter(s => (squad?.team1?.players||[]).some(p=>p.name===s)).join(', ');
+    if (awayEl) awayEl.textContent = names.filter(s => (squad?.team2?.players||[]).some(p=>p.name===s)).join(', ');
+    // Aktualizuj m.myScorers
+    const m = MATCHES.find(x => x.id === matchId);
+    if (m) m.myScorers = names;
   }
 
   function removeScorerFromChip(matchId, name) {
