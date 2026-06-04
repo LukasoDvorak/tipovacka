@@ -1827,22 +1827,33 @@
   }
 
   function renderOthers(f) {
-    const filtered = MATCHES.filter(m => {
-      if (f === 'hotove') return m.status === 'done';
-      if (f === 'live') return m.status === 'live';
-      if (f === 'brzy') return m.status === 'locked';
-      return m.status !== 'open';
-    });
+    // 4 nejbližší otevřené zápasy vždy zobrazujeme (bez tipů ostatních)
+    const upcomingOpen = MATCHES
+      .filter(m => m.status === 'open')
+      .slice(0, 4);
+
+    const filtered = f === 'vse'
+      ? [...MATCHES.filter(m => m.status !== 'open'), ...upcomingOpen]
+      : MATCHES.filter(m => {
+          if (f === 'hotove') return m.status === 'done';
+          if (f === 'live') return m.status === 'live';
+          if (f === 'brzy') return m.status === 'locked';
+          return false;
+        });
     const list = document.getElementById('others-list');
     if (!filtered.length) {
       list.innerHTML = '<div class="empty">Tipy ostatních se zobrazí po uzavření tipování (1 h před výkopem)</div>';
       return;
     }
     list.innerHTML = filtered.map(m => {
-      const all = [
-        { name: 'Lukáš', tip: m.myTip, scorers: m.myScorers?.join(', ') || '—', isMe: true },
-        ...(m.others || []).map(o => ({ name: o.name, tip: o.tip, scorers: o.scorers, isMe: false }))
-      ];
+      // Pro open zápasy zobrazujeme jen vlastní tip, ostatní jsou skryti
+      const isOpen = m.status === 'open';
+      const all = isOpen
+        ? [{ name: currentProfile?.display_name || 'Já', tip: m.myTip, scorers: m.myScorers?.join(', ') || '—', isMe: true }]
+        : [
+            { name: currentProfile?.display_name || 'Já', tip: m.myTip, scorers: m.myScorers?.join(', ') || '—', isMe: true },
+            ...(m.others || []).map(o => ({ name: o.name, tip: o.tip, scorers: o.scorers, isMe: false }))
+          ];
       const rows = all.map(p => {
         if (!p.tip) return `<div class="compare-row"><span class="compare-name">${p.name}${p.isMe ? ' 👤' : ''}</span><span class="compare-score" style="color:var(--muted)">—</span><span class="compare-scorer">bez tipu</span><span class="compare-pts zero">0 b</span></div>`;
         const hasResult = !!m.result;
