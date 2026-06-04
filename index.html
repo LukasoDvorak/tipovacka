@@ -760,7 +760,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b17</span>
+        <span style="color:var(--border)">b18</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -2194,8 +2194,8 @@
 
   async function renderGroups() {
     const { data: matches } = await sb.from('matches')
-      .select('*').eq('phase','group').in('status',['done','live']).order('kickoff_at');
-    if (!matches || !matches.length) return '<div class="empty">Skupinová fáze ještě nezačala</div>';
+      .select('*').eq('phase','group').order('kickoff_at');
+    if (!matches || !matches.length) return '<div class="empty">Žádné zápasy nenalezeny</div>';
 
     // Sestavit tabulky skupin
     const groups = {};
