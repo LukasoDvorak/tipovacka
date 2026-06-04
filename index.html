@@ -760,7 +760,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b15</span>
+        <span style="color:var(--border)">b16</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -1653,7 +1653,7 @@
     // Na MS Info schováme pravý panel — není potřeba
     const rightPanel = document.getElementById('desktop-right');
     if (rightPanel) rightPanel.style.display = name === 'msinfo' ? 'none' : '';
-    if (name === 'pretournament') renderPreTournament();
+    if (name === 'pretournament') { loadPreTournamentOptions().then(() => renderPreTournament()); }
     if (name === 'admin' && currentUser) { renderAdminUsers(); renderAdminRequests(); }
   }
 
@@ -2085,8 +2085,8 @@
   }
 
   // ── Pre-tournament ──
-  const PRE_LOCKED = true; // demo: true = uzavřeno, false = otevřeno
-  const MY_PRE = { winner: '🇫🇷 Francie', finalist: '🇧🇷 Brazílie', scorer: 'Ronaldo 🇵🇹' };
+  let PRE_LOCKED = false;
+  const MY_PRE = { winner: '', finalist: '', scorer: '' };
   const OTHERS_PRE = [
     { name: 'Martin',  winner: '🇧🇷 Brazílie',   finalist: '🇦🇷 Argentina',  scorer: 'Vinicius Jr. 🇧🇷' },
     { name: 'Tomáš',   winner: '🇩🇪 Německo',    finalist: '🇫🇷 Francie',    scorer: 'Mbappé 🇫🇷' },
@@ -2094,8 +2094,31 @@
     { name: 'Ondřej',  winner: '🇦🇷 Argentina',  finalist: '🇧🇷 Brazílie',   scorer: 'Messi 🇦🇷' },
     { name: 'Karel',   winner: '🇧🇷 Brazílie',   finalist: '🇩🇪 Německo',    scorer: 'Müller 🇩🇪' },
   ];
-  const TEAMS = ['🇧🇷 Brazílie','🇫🇷 Francie','🇦🇷 Argentina','🇩🇪 Německo','🇪🇸 Španělsko','🏴󠁧󠁢󠁥󠁮󠁧󠁿 Anglie','🇵🇹 Portugalsko','🇯🇵 Japonsko','🇺🇸 USA'];
-  const SCORERS_LIST = ['Mbappé 🇫🇷','Ronaldo 🇵🇹','Vinicius Jr. 🇧🇷','Messi 🇦🇷','Kane 🏴󠁧󠁢󠁥󠁮󠁧󠁿','Lewandowski 🇵🇱','Yamal 🇪🇸','Müller 🇩🇪'];
+  let TEAMS = [];
+  let SCORERS_LIST = [];
+
+  async function loadPreTournamentOptions() {
+    // Týmy z DB
+    const { data: matches } = await sb.from('matches').select('home_team,away_team').eq('phase','group');
+    if (matches) {
+      const teamSet = new Set();
+      matches.forEach(m => { teamSet.add(m.home_team); teamSet.add(m.away_team); });
+      TEAMS = [...teamSet].sort();
+    }
+    // Střelci — útočníci a záložníci ze všech týmů
+    const { data: players } = await sb.from('players')
+      .select('player_name,team_name,team_tla')
+      .in('position', ['Útočník','Záložník'])
+      .order('player_name');
+    if (players) {
+      SCORERS_LIST = players.map(p => p.player_name);
+    }
+    // PRE_LOCKED — uzavřeno 1h před prvním zápasem
+    const { data: first } = await sb.from('matches').select('kickoff_at').order('kickoff_at').limit(1).maybeSingle();
+    if (first) {
+      PRE_LOCKED = new Date() >= new Date(new Date(first.kickoff_at).getTime() - 60*60*1000);
+    }
+  }
 
   function renderPreTournament() {
     const el = document.getElementById('pretournament-content');
@@ -2152,29 +2175,37 @@
       ${!PRE_LOCKED ? `<button class="save-btn" onclick="savePreTournament()">Uložit tipy před turnajem</button>
       <div style="color:var(--muted);font-size:11px;text-align:center;margin-top:10px">Tipy nelze po uzavření měnit.</div>` : ''}`;
 
-    const othersHtml = PRE_LOCKED ? `
-      <div class="section-title" style="margin-top:20px">Tipy ostatních hráčů</div>
-      <div class="card">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;padding:8px 12px;border-bottom:1px solid var(--border)">
-          <div style="font-size:11px;font-weight:700;color:var(--muted)">Hráč</div>
-          <div style="font-size:11px;font-weight:700;color:var(--muted)">🏆 Vítěz</div>
-          <div style="font-size:11px;font-weight:700;color:var(--muted)">🥈 Finalista</div>
-          <div style="font-size:11px;font-weight:700;color:var(--muted)">👟 Střelec</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;padding:9px 12px;border-bottom:1px solid var(--border);background:rgba(59,130,246,.06)">
-          <div style="font-size:13px;font-weight:600">Lukáš 👤</div>
-          <div style="font-size:12px">${MY_PRE.winner}</div>
-          <div style="font-size:12px">${MY_PRE.finalist}</div>
-          <div style="font-size:12px">${MY_PRE.scorer}</div>
-        </div>
-        ${OTHERS_PRE.map(p => `
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;padding:9px 12px;border-bottom:1px solid var(--border)">
-          <div style="font-size:13px;font-weight:500">${p.name}</div>
-          <div style="font-size:12px">${p.winner}</div>
-          <div style="font-size:12px">${p.finalist}</div>
-          <div style="font-size:12px">${p.scorer}</div>
-        </div>`).join('')}
-      </div>` : `<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px">🔒 Tipy ostatních se zobrazí po uzavření</div>`;
+    // Tipy ostatních z DB (načteme async a doplníme)
+    const othersHtml = `<div id="pre-others-section"></div>`;
+    if (PRE_LOCKED) {
+      setTimeout(async () => {
+        const [{ data: preTips }, { data: profiles }] = await Promise.all([
+          sb.from('pre_tips').select('*'),
+          sb.from('profiles').select('id,display_name'),
+        ]);
+        const profileMap = {};
+        if (profiles) profiles.forEach(p => profileMap[p.id] = p.display_name);
+        const section = document.getElementById('pre-others-section');
+        if (!section || !preTips) return;
+        section.innerHTML = `
+          <div class="section-title" style="margin-top:20px">Tipy ostatních hráčů</div>
+          <div class="card">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;padding:8px 12px;border-bottom:1px solid var(--border)">
+              <div style="font-size:11px;font-weight:700;color:var(--muted)">Hráč</div>
+              <div style="font-size:11px;font-weight:700;color:var(--muted)">🏆 Vítěz</div>
+              <div style="font-size:11px;font-weight:700;color:var(--muted)">🥈 Finalista</div>
+              <div style="font-size:11px;font-weight:700;color:var(--muted)">👟 Střelec</div>
+            </div>
+            ${preTips.map(p => `
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;padding:9px 12px;border-bottom:1px solid var(--border);${currentUser && p.user_id===currentUser.id?'background:rgba(59,130,246,.06)':''}">
+              <div style="font-size:13px;font-weight:${currentUser && p.user_id===currentUser.id?'600':'400'}">${profileMap[p.user_id]||'Hráč'}${currentUser && p.user_id===currentUser.id?' 👤':''}</div>
+              <div style="font-size:12px">${p.winner_team||'—'}</div>
+              <div style="font-size:12px">${p.finalist_team||'—'}</div>
+              <div style="font-size:12px">${p.top_scorer||'—'}</div>
+            </div>`).join('')}
+          </div>`;
+      }, 0);
+    }
 
     el.innerHTML = statusHtml + myTipsHtml + othersHtml;
   }
@@ -2229,74 +2260,88 @@
     renderMsContent(view);
   }
 
-  function renderMsContent(view) {
+  async function renderMsContent(view) {
     const el = document.getElementById('ms-content');
     if (!el) return;
-    if (view === 'skupiny') el.innerHTML = renderGroups();
-    else if (view === 'strelci') el.innerHTML = renderScorers();
-    else el.innerHTML = renderResults();
+    el.innerHTML = '<div class="empty">Načítám…</div>';
+    if (view === 'skupiny') el.innerHTML = await renderGroups();
+    else if (view === 'strelci') el.innerHTML = await renderScorers();
+    else el.innerHTML = await renderResults();
   }
 
-  function renderGroups() {
-    return MS_GROUPS.map(g => `
-      <div class="group-table">
-        <div class="group-table-header">
-          <span>${g.name}</span>
-          <span style="font-size:10px;color:var(--muted)">Z · V · R · P · Skóre · Body</span>
+  async function renderGroups() {
+    const { data: matches } = await sb.from('matches')
+      .select('*').eq('phase','group').in('status',['done','live']).order('kickoff_at');
+    if (!matches || !matches.length) return '<div class="empty">Skupinová fáze ještě nezačala</div>';
+
+    // Sestavit tabulky skupin
+    const groups = {};
+    matches.forEach(m => {
+      const g = m.group_name;
+      if (!groups[g]) groups[g] = {};
+      [m.home_team, m.away_team].forEach(team => {
+        if (!groups[g][team]) groups[g][team] = { name: team, z:0,v:0,r:0,p:0,gf:0,ga:0,pts:0 };
+      });
+      if (m.home_score === null) return;
+      const h = groups[g][m.home_team], a = groups[g][m.away_team];
+      h.z++; a.z++;
+      h.gf += m.home_score; h.ga += m.away_score;
+      a.gf += m.away_score; a.ga += m.home_score;
+      if (m.home_score > m.away_score) { h.v++; h.pts+=3; a.p++; }
+      else if (m.home_score < m.away_score) { a.v++; a.pts+=3; h.p++; }
+      else { h.r++; h.pts++; a.r++; a.pts++; }
+    });
+
+    return Object.entries(groups).sort(([a],[b])=>a.localeCompare(b)).map(([gName, teams]) => {
+      const sorted = Object.values(teams).sort((a,b) => b.pts-a.pts || (b.gf-b.ga)-(a.gf-a.ga));
+      const flag = t => t.split(' ')[0];
+      const tname = t => t.split(' ').slice(1).join(' ');
+      return `<div class="group-table">
+        <div class="group-table-header"><span>${gName}</span><span style="font-size:10px;color:var(--muted)">Z · V · R · P · Skóre · Body</span></div>
+        <table><thead><tr><th>Tým</th><th>Z</th><th>V</th><th>R</th><th>P</th><th>Skóre</th><th>Body</th></tr></thead>
+        <tbody>${sorted.map((t,i) => `<tr class="${i<2?'qualified':''}">
+          <td><div class="team-cell"><span class="team-flag-sm">${flag(t.name)}</span>${tname(t.name)}</div></td>
+          <td>${t.z}</td><td>${t.v}</td><td>${t.r}</td><td>${t.p}</td>
+          <td style="color:var(--muted)">${t.gf}:${t.ga}</td>
+          <td style="font-weight:700;color:${i<2?'var(--green)':'var(--text)'}">${t.pts}</td>
+        </tr>`).join('')}</tbody></table>
+        <div style="padding:7px 12px;font-size:10px;color:var(--muted)">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:4px"></span>Postup do osmifinále
         </div>
-        <table>
-          <thead><tr>
-            <th>Tým</th>
-            <th>Z</th><th>V</th><th>R</th><th>P</th>
-            <th>Skóre</th><th>Body</th><th>Forma</th>
-          </tr></thead>
-          <tbody>${g.teams.map((t, i) => `
-            <tr class="${i < 2 ? 'qualified' : ''}">
-              <td><div class="team-cell"><span class="team-flag-sm">${t.flag}</span>${t.name}</div></td>
-              <td>${t.z}</td><td>${t.v}</td><td>${t.r}</td><td>${t.p}</td>
-              <td style="color:var(--muted)">${t.gf}:${t.ga}</td>
-              <td style="font-weight:700;color:${i<2?'var(--green)':'var(--text)'}">${t.pts}</td>
-              <td><div class="form-dots">${t.form.map(f=>`<div class="form-dot ${f}"></div>`).join('')}</div></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-        <div style="padding:7px 12px;font-size:10px;color:var(--muted);display:flex;gap:12px">
-          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:4px"></span>Postup do osmifinále</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function renderScorers() {
+    const { data } = await sb.from('goals')
+      .select('player_name, team, count:id.count()').order('count', {ascending:false}).limit(20);
+    if (!data || !data.length) return '<div class="empty">Zatím žádné góly</div>';
+    return `<div class="scorers-table">${data.map((s,i) => `
+      <div class="scorer-row">
+        <div class="scorer-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+        <div class="scorer-info">
+          <div class="scorer-name">${s.player_name}</div>
+          <div class="scorer-team">${s.team}</div>
         </div>
-      </div>`).join('');
+        <div class="scorer-goals">${s.count} <span>gólů</span></div>
+      </div>`).join('')}</div>`;
   }
 
-  function renderScorers() {
-    return `
-      <div class="scorers-table">
-        ${MS_SCORERS.map((s, i) => `
-          <div class="scorer-row">
-            <div class="scorer-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
-            <div class="scorer-flag">${s.flag}</div>
-            <div class="scorer-info">
-              <div class="scorer-name">${s.name}</div>
-              <div class="scorer-team">${s.team}</div>
-            </div>
-            <div style="text-align:right">
-              <div class="scorer-goals">${s.goals} <span>gólů</span></div>
-              <div style="font-size:11px;color:var(--muted)">${s.assists} asistencí</div>
-            </div>
-          </div>`).join('')}
+  async function renderResults() {
+    const { data } = await sb.from('matches')
+      .select('*').in('status',['done','live']).order('kickoff_at', {ascending:false}).limit(50);
+    if (!data || !data.length) return '<div class="empty">Zatím žádné odehrané zápasy</div>';
+    return `<div class="card">${data.map(m => {
+      const isLive = m.status === 'live';
+      const date = new Date(m.kickoff_at).toLocaleDateString('cs-CZ',{day:'2-digit',month:'2-digit',timeZone:'Europe/Prague'});
+      return `<div class="lb-row" style="gap:8px">
+        <div style="font-size:10px;color:var(--muted);width:32px">${date}</div>
+        <div style="flex:1;font-size:12px;text-align:right">${m.home_team}</div>
+        <div style="font-size:15px;font-weight:800;min-width:44px;text-align:center;color:${isLive?'var(--red)':'var(--text)'}">${m.home_score}:${m.away_score}${isLive?' <span style="font-size:9px;animation:pulse 1.5s infinite">●</span>':''}</div>
+        <div style="flex:1;font-size:12px">${m.away_team}</div>
+        <div style="font-size:10px;color:var(--muted);width:40px">${m.group_name?.replace('Skupina ','Sk.')??''}</div>
       </div>`;
-  }
-
-  function renderResults() {
-    return `
-      <div class="card">
-        ${MS_RESULTS.map(r => `
-          <div class="lb-row" style="gap:8px">
-            <div style="font-size:10px;color:var(--muted);width:28px;text-align:center">${r.date}</div>
-            <div style="flex:1;font-size:12px;text-align:right">${r.home}</div>
-            <div style="font-size:15px;font-weight:800;min-width:44px;text-align:center;${r.live?'color:var(--red)':''}">${r.score}${r.live?' <span style="font-size:9px;animation:pulse 1.5s infinite;display:inline-block">●</span>':''}</div>
-            <div style="flex:1;font-size:12px">${r.away}</div>
-            <div style="font-size:10px;color:var(--muted);width:14px">Sk.${r.group}</div>
-          </div>`).join('')}
-      </div>`;
+    }).join('')}</div>`;
   }
 
   // ── Prize Pool ──
