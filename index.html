@@ -760,7 +760,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b14</span>
+        <span style="color:var(--border)">b15</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -830,6 +830,8 @@
       <div class="pill" onclick="filterMatches('vyplnene',this)">Vyplněné</div>
       <div class="pill" onclick="filterMatches('neodehrane',this)">Neodehrané</div>
       <div class="pill" onclick="filterMatches('odehrane',this)">Odehrané</div>
+      <div class="pill" onclick="filterMatches('skupina',this)">Základní část</div>
+      <div class="pill" onclick="filterMatches('playoff',this)">Play off</div>
     </div>
 
     <div id="matches-list"></div>
@@ -1669,6 +1671,8 @@
       if (f === 'vyplnene') return !!m.myTip;
       if (f === 'neodehrane') return m.status === 'open' || m.status === 'locked';
       if (f === 'odehrane') return m.status === 'done' || m.status === 'live';
+      if (f === 'skupina') return m.group?.startsWith('Skupina');
+      if (f === 'playoff') return !m.group?.startsWith('Skupina');
       return true;
     });
     const list = document.getElementById('matches-list');
