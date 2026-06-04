@@ -809,9 +809,9 @@
   <!-- TIPY -->
   <div class="page active" id="page-tipy">
     <div class="stats-grid">
-      <div class="stat-box"><div class="stat-val">87</div><div class="stat-label">Bodů</div></div>
-      <div class="stat-box"><div class="stat-val">8/12</div><div class="stat-label">Správně</div></div>
-      <div class="stat-box"><div class="stat-val">#2</div><div class="stat-label">Pořadí</div></div>
+      <div class="stat-box"><div class="stat-val" id="stat-pts">0</div><div class="stat-label">Bodů</div></div>
+      <div class="stat-box"><div class="stat-val" id="stat-tips">0/0</div><div class="stat-label">Správně</div></div>
+      <div class="stat-box"><div class="stat-val" id="stat-rank">#—</div><div class="stat-label">Pořadí</div></div>
     </div>
 
     <!-- Notifikace banner -->
@@ -1395,10 +1395,22 @@
       MY_PRE.scorer = preTip.top_scorer || '';
     }
     await loadOthers();
+    await updateMyStats();
     renderMatches(currentFilter);
     renderOthers(currentOthersFilter);
     updateQuotaUI();
     renderPreTournament();
+  }
+
+  async function updateMyStats() {
+    if (!currentUser) return;
+    const { data } = await sb.from('leaderboard').select('*');
+    if (!data) return;
+    const me = data.find(p => p.id === currentUser.id);
+    const rank = me ? data.indexOf(me) + 1 : null;
+    document.getElementById('stat-pts').textContent = me ? me.total_points : 0;
+    document.getElementById('stat-tips').textContent = me ? `${me.exact_scores}/${me.tips_count}` : '0/0';
+    document.getElementById('stat-rank').textContent = rank ? `#${rank}` : '#—';
   }
 
   async function saveTipToDb(matchId) {
