@@ -1691,6 +1691,7 @@
       ? `<span class="match-status" style="color:var(--yellow)">🔒 Uzavřeno · za ${m.kicksInMin} min</span>`
       : `<span class="match-status open">Otevřeno${m.closesIn ? ` · zavírá za ${m.closesIn}` : ''}</span>`;
 
+    const canTip = m.status === 'open';
     const homeName = m.home.split(' ').slice(1).join(' ');
     const awayName = m.away.split(' ').slice(1).join(' ');
     const homeFlag = m.home.split(' ')[0];
@@ -1744,11 +1745,7 @@
           <span style="color:var(--text);font-weight:500">${hintText}</span>
           ${hintBonus ? `<span style="color:var(--muted)">${hintBonus}</span>` : ''}
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;margin-top:8px">
-          <span style="font-size:11px;color:var(--muted)">Střelec · +3 b</span>
-          <button onclick="openScorerModal('${m.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">Vybrat</button>
-        </div>
-        <div id="selected-scorers-${m.id}" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">${scorers}</div>
+        <div id="selected-scorers-${m.id}" style="display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 10px"></div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px">🔒 Tipy ostatních se zobrazí po uzavření</div>
         <button class="save-btn" onclick="saveTip('${m.id}')">Uložit tip</button>`;
     }
@@ -1793,9 +1790,17 @@
     return `<div class="match-card">
       <div class="match-header"><span>${m.group} · ${m.date} · ${m.time}</span>${statusHtml}</div>
       <div class="match-body">
-        <div class="team"><div class="team-flag" style="font-size:28px">${m.home.split(' ')[0]}</div><div class="team-name">${m.home.split(' ').slice(1).join(' ')}</div></div>
+        <div class="team">
+          <div class="team-flag" style="font-size:28px">${m.home.split(' ')[0]}</div>
+          <div class="team-name">${m.home.split(' ').slice(1).join(' ')}</div>
+          ${canTip ? `<button onclick="openScorerModal('${m.id}','home')" style="margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">⚽ Střelci</button>` : ''}
+        </div>
         <div class="vs-block">${scoreHtml}</div>
-        <div class="team"><div class="team-flag" style="font-size:28px">${m.away.split(' ')[0]}</div><div class="team-name">${m.away.split(' ').slice(1).join(' ')}</div></div>
+        <div class="team">
+          <div class="team-flag" style="font-size:28px">${m.away.split(' ')[0]}</div>
+          <div class="team-name">${m.away.split(' ').slice(1).join(' ')}</div>
+          ${canTip ? `<button onclick="openScorerModal('${m.id}','away')" style="margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">⚽ Střelci</button>` : ''}
+        </div>
       </div>
       <div class="match-footer">${footerHtml}${othersHtml}</div>
     </div>`;
@@ -1890,7 +1895,12 @@
   }
 
   // ── Scorer Modal ──
-  async function openScorerModal(matchId) {
+  const POS_ORDER = { 'Útočník': 0, 'Záložník': 1, 'Obránce': 2, 'Brankář': 3 };
+  function sortPlayers(players) {
+    return [...players].sort((a, b) => (POS_ORDER[a.pos] ?? 9) - (POS_ORDER[b.pos] ?? 9));
+  }
+
+  async function openScorerModal(matchId, teamSide) {
     currentMatchId = matchId;
 
     // Načti soupisku z DB pokud ji nemáme
@@ -1921,13 +1931,20 @@
     }
 
     modalSelected = new Set(savedScorers[matchId] || []);
-    document.getElementById('modal-title').textContent = squad.match;
+
+    // Zobraz jen vybraný tým (nebo oba pokud teamSide není specifikován)
+    const showHome = !teamSide || teamSide === 'home';
+    const showAway = !teamSide || teamSide === 'away';
+    const teamName = teamSide === 'home' ? squad.team1.name : teamSide === 'away' ? squad.team2.name : squad.match;
+    document.getElementById('modal-title').textContent = teamName;
     updateModalQuota();
 
     document.getElementById('modal-team1-label').textContent = squad.team1.name;
     document.getElementById('modal-team2-label').textContent = squad.team2.name;
-    renderModalPlayers('modal-team1-players', squad.team1.players);
-    renderModalPlayers('modal-team2-players', squad.team2.players);
+    document.getElementById('modal-team1-label').closest('div') && (document.getElementById('modal-team1-label').parentElement.style.display = showHome ? '' : 'none');
+    document.getElementById('modal-team2-label').parentElement.style.display = showAway ? '' : 'none';
+    renderModalPlayers('modal-team1-players', sortPlayers(squad.team1.players));
+    renderModalPlayers('modal-team2-players', sortPlayers(squad.team2.players));
 
     document.getElementById('scorer-modal').classList.add('open');
   }
