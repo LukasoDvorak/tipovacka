@@ -765,7 +765,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b49</span>
+        <span style="color:var(--border)">b50</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -832,6 +832,7 @@
 
     <div class="filter-bar">
       <div class="pill active" onclick="filterMatches('vse',this)">Vše</div>
+      <div class="pill" onclick="filterMatches('live',this)">Live</div>
       <div class="pill" onclick="filterMatches('brzy',this)">Brzy</div>
       <div class="pill" onclick="filterMatches('vyplnene',this)">Vyplněné</div>
       <div class="pill" onclick="filterMatches('neodehrane',this)">Neodehrané</div>
@@ -1427,6 +1428,16 @@
     }
   }
 
+  async function recalcAndReloadLeaderboard() {
+    await sb.rpc('recalc_points');
+    await loadMatchesFromDB();
+    await loadUserData();
+    await loadOthers();
+    await loadLeaderboard();
+    await updateMyStats();
+    renderMatches(currentFilter);
+  }
+
   async function recalcAllPoints() {
     showToast('Přepočítávám body…');
     const { error } = await sb.rpc('recalc_points');
@@ -1631,7 +1642,7 @@
     document.getElementById('tab-' + name)?.classList.add('active');
     document.getElementById('dsk-' + name)?.classList.add('active');
     document.getElementById('page-' + name).classList.add('active');
-    if (name === 'leaderboard') { loadLeaderboard(); renderPrizePool(); }
+    if (name === 'leaderboard' || name === 'tipy') { recalcAndReloadLeaderboard(); renderPrizePool(); }
     if (name === 'msinfo') renderMsContent(currentMsView);
     // Na MS Info schováme pravý panel — není potřeba
     const rightPanel = document.getElementById('desktop-right');
@@ -1650,6 +1661,7 @@
 
   function renderMatches(f) {
     const filtered = MATCHES.filter(m => {
+      if (f === 'live') return m.status === 'live';
       if (f === 'brzy') return MATCHES.filter(x => x.status === 'open').slice(0,4).includes(m);
       if (f === 'vyplnene') return !!m.myTip;
       if (f === 'neodehrane') return m.status === 'open' || m.status === 'locked';
@@ -1714,10 +1726,10 @@
       const scorerPts = (m.myScorers || []).filter(s => (m.goalScorers || []).includes(s)).length * 3;
       const totalPts = tipPts !== null ? tipPts + scorerPts : null;
       const dotClass = tipPts === null ? 'partial' : tipPts >= 5 ? 'correct' : tipPts >= 2 ? 'partial' : 'wrong';
-      const ptsColor = !isDone ? 'var(--yellow)' : tipPts >= 2 ? 'var(--green)' : 'var(--red)';
-      const tipLabel = tipPts === null ? 'Probíhá' : tipPts >= 5 ? 'Přesné skóre' : tipPts >= 2 ? 'Správný vítěz' : 'Špatně';
+      const ptsColor = !isDone ? 'var(--yellow)' : tipPts >= 2 ? 'var(--green)' : scorerPts > 0 ? 'var(--green)' : 'var(--red)';
+      const tipLabel = tipPts === null ? 'Probíhá' : tipPts >= 5 ? 'Přesné skóre' : tipPts >= 2 ? 'Správný tip' : 'Špatně';
       const ptsLabel = totalPts === null ? '? b' : `+${totalPts} b`;
-      const scorerLabel = scorerPts > 0 ? ` · ⚽ +${scorerPts} b` : '';
+      const scorerLabel = scorerPts > 0 ? ` · <span style="color:var(--green)">⚽ +${scorerPts} b</span>` : '';
       footerHtml = `<div class="tip-result">
         <div class="tip-dot ${dotClass}"></div>
         <span>${tipLabel}${scorerLabel}</span>
