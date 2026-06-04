@@ -1820,7 +1820,7 @@
     const upcomingOpen = MATCHES.filter(m => m.status === 'open').slice(0, 4);
 
     const filtered = MATCHES.filter(m => {
-      if (f === 'vse') return m.status !== 'open';
+      if (f === 'vse') return m.status !== 'open' || upcomingOpen.includes(m);
       if (f === 'hotove') return m.status === 'done';
       if (f === 'live') return m.status === 'live';
       if (f === 'brzy') return m.status === 'locked' || upcomingOpen.includes(m);
