@@ -760,7 +760,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b33</span>
+        <span style="color:var(--border)">b34</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -1737,16 +1737,15 @@
           <div class="team-flag" style="font-size:28px">${m.home.split(' ')[0]}</div>
           <div class="team-name">${m.home.split(' ').slice(1).join(' ')}</div>
           ${canTip ? `<button onclick="openScorerModal('${m.id}','home')" style="margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">⚽ Střelci</button>` : ''}
-          <div id="scorers-home-${m.id}" style="margin-top:4px;font-size:10px;color:var(--accent);min-height:14px;text-align:center">${(m.myScorers||[]).filter(s => (squads[m.id]?.team1?.players||[]).some(p=>p.name===s)).join(', ')}</div>
         </div>
         <div class="vs-block">${scoreHtml}</div>
         <div class="team">
           <div class="team-flag" style="font-size:28px">${m.away.split(' ')[0]}</div>
           <div class="team-name">${m.away.split(' ').slice(1).join(' ')}</div>
           ${canTip ? `<button onclick="openScorerModal('${m.id}','away')" style="margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">⚽ Střelci</button>` : ''}
-          <div id="scorers-away-${m.id}" style="margin-top:4px;font-size:10px;color:var(--accent);min-height:14px;text-align:center">${(m.myScorers||[]).filter(s => (squads[m.id]?.team2?.players||[]).some(p=>p.name===s)).join(', ')}</div>
         </div>
       </div>
+      ${m.myScorers?.length && m.status === 'open' ? `<div style="text-align:center;padding:4px 16px 0;font-size:11px;color:var(--accent)">⚽ ${m.myScorers.join(', ')}</div>` : ''}
       <div class="match-footer">${footerHtml}${othersHtml}</div>
     </div>`;
   }
@@ -1951,14 +1950,9 @@
 
   function updateScorerDisplay(matchId) {
     const names = [...(savedScorers[matchId] || [])];
-    const squad = squads[matchId];
-    const homeEl = document.getElementById('scorers-home-' + matchId);
-    const awayEl = document.getElementById('scorers-away-' + matchId);
-    if (homeEl) homeEl.textContent = names.filter(s => (squad?.team1?.players||[]).some(p=>p.name===s)).join(', ');
-    if (awayEl) awayEl.textContent = names.filter(s => (squad?.team2?.players||[]).some(p=>p.name===s)).join(', ');
-    // Aktualizuj m.myScorers
     const m = MATCHES.find(x => x.id === matchId);
     if (m) m.myScorers = names;
+    renderMatches(currentFilter);
   }
 
   function removeScorerFromChip(matchId, name) {
