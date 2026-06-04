@@ -766,7 +766,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b58</span>
+        <span style="color:var(--border)">b59</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -1781,14 +1781,14 @@
           <span class="expand-hint">zobrazit detaily ›</span>
         </div>
         <div class="tips-bar-wrap">
-          ${pctH > 0 ? `<div class="tips-bar-seg home ${draw===0&&awayW===0?'solo':''}" style="flex:${pctH}">${pctH >= 18 ? pctH+'%' : ''}</div>` : ''}
-          ${pctD > 0 ? `<div class="tips-bar-seg draw" style="flex:${pctD}">${pctD >= 18 ? pctD+'%' : ''}</div>` : ''}
-          ${pctA > 0 ? `<div class="tips-bar-seg away ${homeW===0&&draw===0?'solo':''}" style="flex:${pctA}">${pctA >= 18 ? pctA+'%' : ''}</div>` : ''}
+          ${pctH > 0 ? `<div class="tips-bar-seg home ${draw===0&&awayW===0?'solo':''}" style="flex:${pctH}">${homeW >= 1 ? homeW+'×' : ''}</div>` : ''}
+          ${pctD > 0 ? `<div class="tips-bar-seg draw" style="flex:${pctD}">${draw >= 1 ? draw+'×' : ''}</div>` : ''}
+          ${pctA > 0 ? `<div class="tips-bar-seg away ${homeW===0&&draw===0?'solo':''}" style="flex:${pctA}">${awayW >= 1 ? awayW+'×' : ''}</div>` : ''}
         </div>
         <div class="tips-counts">
-          <span style="color:#3b82f6">${m.home.split(' ')[0]} ${pctH}% (${homeW}×)</span>
-          ${pctD > 0 ? `<span>remíza ${pctD}%</span>` : ''}
-          <span style="color:#8b5cf6">${m.away.split(' ')[0]} ${pctA}% (${awayW}×)</span>
+          <span style="color:#3b82f6">${m.home.split(' ')[0]} ${homeW}×</span>
+          ${pctD > 0 ? `<span>remíza ${draw}×</span>` : ''}
+          <span style="color:#8b5cf6">${m.away.split(' ')[0]} ${awayW}×</span>
         </div>
         ${mineLabel ? `<div style="font-size:11px;color:var(--accent);margin-top:5px">👤 ${mineLabel}</div>` : ''}
       </div>`;
