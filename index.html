@@ -1671,7 +1671,7 @@
 
   function renderMatches(f) {
     const filtered = MATCHES.filter(m => {
-      if (f === 'dnes') return m.date === '2026-06-03';
+      if (f === 'dnes') { const today = new Date().toLocaleDateString('cs-CZ', {timeZone:'Europe/Prague',day:'2-digit',month:'2-digit',year:'numeric'}); return m.date === today; }
       if (f === 'nevyplnene') return m.status === 'open' && !m.myTip;
       if (f === 'hotove') return m.status === 'done';
       return true;
@@ -1791,7 +1791,7 @@
     }
 
     return `<div class="match-card">
-      <div class="match-header"><span>${m.group} · ${m.time}</span>${statusHtml}</div>
+      <div class="match-header"><span>${m.group} · ${m.date} · ${m.time}</span>${statusHtml}</div>
       <div class="match-body">
         <div class="team"><div class="team-flag" style="font-size:28px">${m.home.split(' ')[0]}</div><div class="team-name">${m.home.split(' ').slice(1).join(' ')}</div></div>
         <div class="vs-block">${scoreHtml}</div>
@@ -1861,7 +1861,7 @@
       const resultColor = m.status === 'done' ? 'var(--green)' : m.status === 'live' ? 'var(--yellow)' : 'var(--muted)';
       return `<div class="match-compare">
         <div class="match-compare-header" style="cursor:default">
-          <span class="match-compare-teams">${m.home} vs ${m.away}</span>
+          <span class="match-compare-teams">${m.home} vs ${m.away}<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">${m.date} · ${m.time}</span></span>
           <span class="match-compare-result" style="color:${resultColor};display:flex;align-items:center;gap:6px">
             ${resultStr}
             ${m.status === 'live' ? `<span style="font-size:10px;font-weight:700;color:var(--red);animation:pulse 1.5s infinite">LIVE</span>${m.liveMin ? `<span style="font-size:10px;color:var(--muted);font-weight:600">${m.liveMin}'</span>` : ''}` : ''}
