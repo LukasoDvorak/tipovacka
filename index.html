@@ -765,7 +765,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b48</span>
+        <span style="color:var(--border)">b49</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -1429,39 +1429,14 @@
 
   async function recalcAllPoints() {
     showToast('Přepočítávám body…');
-    // Načti všechny dohráné zápasy
-    const { data: doneMatches } = await sb.from('matches').select('*').eq('status','done');
-    if (!doneMatches?.length) { showToast('Žádné dohráné zápasy'); return; }
-
-    // Načti všechny tipy a góly
-    const { data: allTips } = await sb.from('tips').select('*');
-    const { data: allGoals } = await sb.from('goals').select('*');
-    const { data: allScorerTips } = await sb.from('scorer_tips').select('*');
-
-    let updated = 0;
-    for (const match of doneMatches) {
-      const result = { h: match.home_score, a: match.away_score };
-      const matchGoals = (allGoals || []).filter(g => g.match_id === match.id).map(g => g.player_name);
-
-      // Přepočti tip body
-      const matchTips = (allTips || []).filter(t => t.match_id === match.id);
-      for (const tip of matchTips) {
-        const pts = calcTipPoints({ h: tip.home_score, a: tip.away_score }, result);
-        await sb.from('tips').update({ points: pts }).eq('id', tip.id);
-        updated++;
-      }
-
-      // Přepočti střelec body
-      const matchScorerTips = (allScorerTips || []).filter(s => s.match_id === match.id);
-      for (const st of matchScorerTips) {
-        const pts = matchGoals.includes(st.player_name) ? 3 : 0;
-        await sb.from('scorer_tips').update({ points: pts }).eq('id', st.id);
-      }
-    }
-
-    showToast(`✓ Přepočítáno ${updated} tipů`);
+    const { error } = await sb.rpc('recalc_points');
+    if (error) { showToast('Chyba: ' + error.message, false); return; }
+    showToast('✓ Body přepočítány');
+    await loadMatchesFromDB();
+    await loadUserData();
     loadLeaderboard();
     updateMyStats();
+    renderMatches(currentFilter);
   }
 
   function renderLiveLeaderboard() {
