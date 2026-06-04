@@ -18,6 +18,9 @@ const TEAM_FLAGS = {
   'ECU': '🇪🇨', 'COL': '🇨🇴', 'VEN': '🇻🇪', 'CHI': '🇨🇱', 'PER': '🇵🇪',
   'BOL': '🇧🇴', 'PAR': '🇵🇾', 'CRC': '🇨🇷', 'PAN': '🇵🇦', 'HON': '🇭🇳',
   'NZL': '🇳🇿', 'PHI': '🇵🇭', 'THA': '🇹🇭', 'IND': '🇮🇳', 'CHN': '🇨🇳',
+  'URY': '🇺🇾', 'ALG': '🇩🇿', 'KSA': '🇸🇦', 'TUN': '🇹🇳', 'HAI': '🇭🇹',
+  'BIH': '🇧🇦', 'CPV': '🇨🇻', 'COD': '🇨🇩', 'CIV': '🇨🇮', 'IRQ': '🇮🇶',
+  'UZB': '🇺🇿', 'SCO': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'CUW': '🇨🇼',
 };
 
 function flag(tla) {
