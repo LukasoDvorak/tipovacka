@@ -1,5 +1,5 @@
-const CACHE = 'tipovacka-v1';
-const ASSETS = ['/', '/index.html'];
+const CACHE = 'tipovacka-v2';
+const ASSETS = ['/tipovacka/', '/tipovacka/index.html'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
