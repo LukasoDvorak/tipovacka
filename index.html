@@ -760,7 +760,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b26</span>
+        <span style="color:var(--border)">b27</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -2445,16 +2445,38 @@
       navigator.serviceWorker.register('/tipovacka/sw.js', { scope: '/tipovacka/' }).catch(e => console.error('SW reg error:', e));
     }
     // Počkej až bude DOM připravený
-    setTimeout(() => {
+    setTimeout(async () => {
       if (!('Notification' in window)) {
         const b = document.getElementById('notif-banner');
         if (b) b.style.display = 'none';
         return;
       }
       const perm = Notification.permission;
-      if (perm === 'granted') setNotifGranted();
-      else if (perm === 'denied') setNotifDenied();
-    }, 300);
+      if (perm === 'granted') {
+        setNotifGranted();
+        // Zkus automaticky subscribeovat pokud ještě nemáme subscription
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          if (regs.length > 0) {
+            const existing = await regs[0].pushManager.getSubscription();
+            if (!existing) {
+              const sub = await regs[0].pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+              });
+              if (currentUser) {
+                await sb.from('push_subscriptions').upsert({
+                  user_id: currentUser.id,
+                  subscription: sub.toJSON(),
+                }, { onConflict: 'user_id' });
+              }
+            }
+          }
+        } catch(e) { console.warn('Auto-subscribe failed:', e.message); }
+      } else if (perm === 'denied') {
+        setNotifDenied();
+      }
+    }, 500);
   }
 
   const VAPID_PUBLIC_KEY = 'BJNttlKvdEyNwD935OpvR1IJ6U1OcJ4M0QTI7F71ZFWj21PS2rZgKGYO9-DY88dhTb4P16TYFAMEY8LClEqmHmo';
