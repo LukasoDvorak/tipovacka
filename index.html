@@ -1932,19 +1932,24 @@
 
     modalSelected = new Set(savedScorers[matchId] || []);
 
-    // Zobraz jen vybraný tým (nebo oba pokud teamSide není specifikován)
     const showHome = !teamSide || teamSide === 'home';
     const showAway = !teamSide || teamSide === 'away';
     const teamName = teamSide === 'home' ? squad.team1.name : teamSide === 'away' ? squad.team2.name : squad.match;
+
     document.getElementById('modal-title').textContent = teamName;
     updateModalQuota();
 
+    // Team 1
     document.getElementById('modal-team1-label').textContent = squad.team1.name;
+    document.getElementById('modal-team1-label').style.display = showHome ? '' : 'none';
+    document.getElementById('modal-team1-players').style.display = showHome ? '' : 'none';
+    if (showHome) renderModalPlayers('modal-team1-players', sortPlayers(squad.team1.players));
+
+    // Team 2
     document.getElementById('modal-team2-label').textContent = squad.team2.name;
-    document.getElementById('modal-team1-label').closest('div') && (document.getElementById('modal-team1-label').parentElement.style.display = showHome ? '' : 'none');
-    document.getElementById('modal-team2-label').parentElement.style.display = showAway ? '' : 'none';
-    renderModalPlayers('modal-team1-players', sortPlayers(squad.team1.players));
-    renderModalPlayers('modal-team2-players', sortPlayers(squad.team2.players));
+    document.getElementById('modal-team2-label').style.display = showAway ? '' : 'none';
+    document.getElementById('modal-team2-players').style.display = showAway ? '' : 'none';
+    if (showAway) renderModalPlayers('modal-team2-players', sortPlayers(squad.team2.players));
 
     document.getElementById('scorer-modal').classList.add('open');
   }
