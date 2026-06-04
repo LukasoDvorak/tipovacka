@@ -1817,19 +1817,15 @@
   }
 
   function renderOthers(f) {
-    // 4 nejbližší otevřené zápasy vždy zobrazujeme (bez tipů ostatních)
-    const upcomingOpen = MATCHES
-      .filter(m => m.status === 'open')
-      .slice(0, 4);
+    const upcomingOpen = MATCHES.filter(m => m.status === 'open').slice(0, 4);
 
-    const filtered = f === 'vse'
-      ? [...MATCHES.filter(m => m.status !== 'open'), ...upcomingOpen]
-      : MATCHES.filter(m => {
-          if (f === 'hotove') return m.status === 'done';
-          if (f === 'live') return m.status === 'live';
-          if (f === 'brzy') return m.status === 'locked';
-          return false;
-        });
+    const filtered = MATCHES.filter(m => {
+      if (f === 'vse') return m.status !== 'open';
+      if (f === 'hotove') return m.status === 'done';
+      if (f === 'live') return m.status === 'live';
+      if (f === 'brzy') return m.status === 'locked' || upcomingOpen.includes(m);
+      return false;
+    });
     const list = document.getElementById('others-list');
     if (!filtered.length) {
       list.innerHTML = '<div class="empty">Tipy ostatních se zobrazí po uzavření tipování (1 h před výkopem)</div>';
