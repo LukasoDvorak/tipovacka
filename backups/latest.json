@@ -1,0 +1,29 @@
+{
+  "exported_at": "2026-06-09T20:58:36.848Z",
+  "profiles": [
+    {
+      "id": "58aa0486-7647-4e19-8671-b55419f57947",
+      "display_name": "lukas.dvo",
+      "avatar_emoji": "😀",
+      "is_approved": true,
+      "has_paid": true
+    },
+    {
+      "id": "7249c8c2-6e82-4a91-b125-e5233b0d4c9a",
+      "display_name": "lukas",
+      "avatar_emoji": "😀",
+      "is_approved": true,
+      "has_paid": true
+    },
+    {
+      "id": "60b8de3d-a236-49a5-a132-0c0c1d62b440",
+      "display_name": "Pokus 2",
+      "avatar_emoji": "😀",
+      "is_approved": true,
+      "has_paid": false
+    }
+  ],
+  "tips": [],
+  "scorer_tips": [],
+  "goals": []
+}
