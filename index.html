@@ -771,7 +771,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b75</span>
+        <span style="color:var(--border)">b76</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -779,9 +779,9 @@
   <!-- Mobile tabs -->
   <div class="nav-tabs" style="overflow-x:auto">
     <div class="nav-tab active" onclick="switchTab('tipy')" id="tab-tipy">Tipy</div>
+    <div class="nav-tab" onclick="switchTab('pretournament')" id="tab-pretournament">Turnaj tipy</div>
     <div class="nav-tab" onclick="switchTab('leaderboard')" id="tab-leaderboard">Tabulka</div>
     <div class="nav-tab" onclick="switchTab('ostatni')" id="tab-ostatni">Ostatní</div>
-    <div class="nav-tab" onclick="switchTab('pretournament')" id="tab-pretournament">Turnaj</div>
     <div class="nav-tab" onclick="switchTab('msinfo')" id="tab-msinfo">MS Info</div>
     <div class="nav-tab" onclick="switchTab('pravidla')" id="tab-pravidla">Pravidla</div>
     <div class="nav-tab" onclick="switchTab('admin')" id="tab-admin" style="color:#ef4444;display:none">Admin</div>
@@ -792,14 +792,14 @@
     <div class="sidebar-item active" onclick="switchTab('tipy')" id="dsk-tipy">
       <span class="sidebar-icon">⚽</span> Moje tipy
     </div>
+    <div class="sidebar-item" onclick="switchTab('pretournament')" id="dsk-pretournament">
+      <span class="sidebar-icon">🏆</span> Turnaj tipy
+    </div>
     <div class="sidebar-item" onclick="switchTab('leaderboard')" id="dsk-leaderboard">
-      <span class="sidebar-icon">🏆</span> Tabulka
+      <span class="sidebar-icon">🥇</span> Tabulka
     </div>
     <div class="sidebar-item" onclick="switchTab('ostatni')" id="dsk-ostatni">
       <span class="sidebar-icon">👥</span> Tipy ostatních
-    </div>
-    <div class="sidebar-item" onclick="switchTab('pretournament')" id="dsk-pretournament">
-      <span class="sidebar-icon">🌍</span> Turnaj
     </div>
     <div class="sidebar-item" onclick="switchTab('msinfo')" id="dsk-msinfo">
       <span class="sidebar-icon">🌍</span> MS Info
