@@ -771,7 +771,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b72</span>
+        <span style="color:var(--border)">b73</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -2147,7 +2147,7 @@
     if (selects.length >= 3) {
       MY_PRE.winner = selects[0].value;
       MY_PRE.finalist = selects[1].value;
-      MY_PRE.scorer = selects[2].value;
+      MY_PRE.scorer = document.getElementById('scorer-input')?.value || selects[2]?.value || '';
       MY_PRE.mostGoals = selects[3]?.value || '';
     }
     if (!MY_PRE.winner || !MY_PRE.finalist || !MY_PRE.scorer) {
@@ -2211,7 +2211,7 @@
 
     const teamOptions = TEAMS.map(t => `<option value="${t}" ${MY_PRE.winner===t?'selected':''}>${t}</option>`).join('');
     const teamOptions2 = TEAMS.map(t => `<option value="${t}" ${MY_PRE.finalist===t?'selected':''}>${t}</option>`).join('');
-    const scorerOptions = SCORERS_LIST.map(s => `<option value="${s}" ${MY_PRE.scorer===s?'selected':''}>${s}</option>`).join('');
+    const scorerDatalist = `<datalist id="scorers-list">${SCORERS_LIST.map(s => `<option value="${s}">`).join('')}</datalist>`;
 
     const myTipsHtml = `
       <div class="pre-section">
@@ -2238,7 +2238,7 @@
           <span class="pre-label">Tvůj tip</span>
           ${PRE_LOCKED || PRE_SAVED
             ? `<span style="font-size:15px;font-weight:700">${MY_PRE.scorer || '—'}</span>`
-            : `<select class="pre-select"><option value="">— nevyplněno —</option>${scorerOptions}</select>`}
+            : `${scorerDatalist}<input class="pre-select" list="scorers-list" placeholder="Začni psát jméno…" value="${MY_PRE.scorer}" id="scorer-input" autocomplete="off" style="cursor:text">`}
         </div>
       </div>
       <div class="pre-section">
