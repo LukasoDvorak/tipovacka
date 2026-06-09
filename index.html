@@ -696,9 +696,22 @@
   <div style="font-size:22px; font-weight:800">Čekáš na schválení</div>
   <div style="font-size:14px; color:var(--muted); line-height:1.7">
     Tvůj účet byl vytvořen.<br/>
-    Admin tě musí schválit a potvrdit platbu<br/>
-    než budeš moci tipovat.
+    Pro aktivaci uhraď prosím registrační poplatek<br/>
+    a admin tě schválí.
   </div>
+
+  <!-- QR kód pro platbu -->
+  <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; width:100%; max-width:280px;">
+    <div style="font-size:13px; font-weight:700; margin-bottom:12px">💳 Registrační poplatek · 1 000 Kč</div>
+    <div id="qr-placeholder" style="width:180px; height:180px; margin:0 auto; background:var(--surface2); border:2px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; color:var(--muted); font-size:12px;">
+      <span style="font-size:32px">📷</span>
+      <span>QR kód pro platbu</span>
+    </div>
+    <div style="font-size:11px; color:var(--muted); margin-top:10px; line-height:1.6">
+      Po zaplacení nás informuj —<br/>admin tě schválí co nejdříve.
+    </div>
+  </div>
+
   <div id="waiting-name" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 20px; font-size:14px; color:var(--muted)"></div>
   <button onclick="checkApproval()" style="padding:12px 24px; border-radius:var(--radius); border:none; background:var(--accent); color:#fff; font-size:14px; font-weight:600; cursor:pointer;">🔄 Zkontrolovat schválení</button>
   <button onclick="logout()" style="padding:10px 24px; border-radius:var(--radius); border:1px solid var(--border); background:transparent; color:var(--muted); font-size:13px; cursor:pointer;">Odhlásit se</button>
@@ -768,7 +781,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b65</span>
+        <span style="color:var(--border)">b66</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
