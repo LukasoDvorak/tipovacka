@@ -1043,6 +1043,9 @@
     <button class="save-btn" style="margin-top:8px;background:var(--accent)" onclick="recalcAllPoints()">
       🔄 Přepočítat body všech hráčů
     </button>
+    <button class="save-btn" style="margin-top:8px;background:#1a7f5a" onclick="syncFromApi()">
+      📡 Stáhnout výsledky z API
+    </button>
   </div><!-- /main-content -->
 
   <!-- Desktop right panel -->
@@ -1435,6 +1438,93 @@
     await loadLeaderboard();
     await updateMyStats();
     renderMatches(currentFilter);
+  }
+
+  const TEAM_FLAGS_SYNC = {
+    'MEX':'🇲🇽','RSA':'🇿🇦','ARG':'🇦🇷','MAR':'🇲🇦','BRA':'🇧🇷','ESP':'🇪🇸','FRA':'🇫🇷',
+    'ENG':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','GER':'🇩🇪','POR':'🇵🇹','NED':'🇳🇱','BEL':'🇧🇪','ITA':'🇮🇹','CRO':'🇭🇷',
+    'URU':'🇺🇾','USA':'🇺🇸','CAN':'🇨🇦','JPN':'🇯🇵','KOR':'🇰🇷','AUS':'🇦🇺','SEN':'🇸🇳',
+    'CMR':'🇨🇲','GHA':'🇬🇭','NGA':'🇳🇬','EGY':'🇪🇬','IRN':'🇮🇷','SAU':'🇸🇦','JOR':'🇯🇴',
+    'QAT':'🇶🇦','UAE':'🇦🇪','SUI':'🇨🇭','AUT':'🇦🇹','DEN':'🇩🇰','SWE':'🇸🇪','NOR':'🇳🇴',
+    'POL':'🇵🇱','CZE':'🇨🇿','SVK':'🇸🇰','HUN':'🇭🇺','ROU':'🇷🇴','SRB':'🇷🇸','UKR':'🇺🇦',
+    'SVN':'🇸🇮','GRE':'🇬🇷','TUR':'🇹🇷','ECU':'🇪🇨','COL':'🇨🇴','VEN':'🇻🇪','CHI':'🇨🇱',
+    'PER':'🇵🇪','BOL':'🇧🇴','PAR':'🇵🇾','CRC':'🇨🇷','PAN':'🇵🇦','HON':'🇭🇳','NZL':'🇳🇿',
+    'KSA':'🇸🇦','TUN':'🇹🇳','ALG':'🇩🇿','CIV':'🇨🇮','COD':'🇨🇩','CPV':'🇨🇻','IRQ':'🇮🇶',
+    'UZB':'🇺🇿','SCO':'🏴󠁧󠁢󠁳󠁣󠁴󠁿','CUW':'🇨🇼','HAI':'🇭🇹','BIH':'🇧🇦',
+  };
+  function syncFlag(tla) { return TEAM_FLAGS_SYNC[tla] || '🏳️'; }
+  function syncStatus(s) {
+    if (s === 'FINISHED') return 'done';
+    if (s === 'IN_PLAY' || s === 'PAUSED') return 'live';
+    return 'open';
+  }
+  function syncPhase(stage) {
+    if (stage === 'GROUP_STAGE') return 'group';
+    if (stage === 'ROUND_OF_16') return 'r16';
+    if (stage === 'QUARTER_FINALS') return 'qf';
+    if (stage === 'SEMI_FINALS') return 'sf';
+    if (stage === 'FINAL') return 'final';
+    return 'group';
+  }
+
+  async function syncFromApi() {
+    showToast('📡 Stahuji výsledky z API…');
+    try {
+      const res = await fetch('https://api.football-data.org/v4/competitions/WC/matches?season=2026', {
+        headers: { 'X-Auth-Token': '553a3ff2fe8046caaa4a3ce6693fb2af' }
+      });
+      if (!res.ok) throw new Error('API chyba: ' + res.status);
+      const data = await res.json();
+      const relevant = (data.matches || []).filter(m => ['IN_PLAY','PAUSED','FINISHED'].includes(m.status));
+      if (relevant.length === 0) { showToast('Žádné aktivní/dokončené zápasy v API'); return; }
+
+      const rows = relevant.map(m => ({
+        id: String(m.id),
+        home_team: `${syncFlag(m.homeTeam.tla)} ${m.homeTeam.name}`,
+        away_team: `${syncFlag(m.awayTeam.tla)} ${m.awayTeam.name}`,
+        home_flag: syncFlag(m.homeTeam.tla),
+        away_flag: syncFlag(m.awayTeam.tla),
+        group_name: m.group ? m.group.replace('GROUP_', 'Skupina ') : m.stage,
+        kickoff_at: m.utcDate,
+        status: syncStatus(m.status),
+        home_score: m.score?.fullTime?.home ?? null,
+        away_score: m.score?.fullTime?.away ?? null,
+        phase: syncPhase(m.stage),
+        api_match_id: m.id,
+      }));
+
+      const { error } = await sb.from('matches').upsert(rows, { onConflict: 'id' });
+      if (error) throw new Error(error.message);
+
+      // Góly pro dokončené zápasy
+      const finished = relevant.filter(m => m.status === 'FINISHED');
+      for (const m of finished) {
+        const det = await fetch(`https://api.football-data.org/v4/matches/${m.id}`, {
+          headers: { 'X-Auth-Token': '553a3ff2fe8046caaa4a3ce6693fb2af' }
+        });
+        if (!det.ok) continue;
+        const d = await det.json();
+        if (!d.goals || d.goals.length === 0) continue;
+        await sb.from('goals').delete().eq('match_id', String(m.id));
+        const goals = d.goals.map(g => ({
+          match_id: String(m.id),
+          player_name: g.scorer?.name || 'Neznámý',
+          team: g.team?.name || '',
+          minute: g.minute || null,
+        }));
+        await sb.from('goals').insert(goals);
+      }
+
+      await sb.rpc('recalc_points');
+      showToast(`✅ Syncnuto ${rows.length} zápasů, body přepočítány`);
+      await loadMatchesFromDB();
+      await loadUserData();
+      loadLeaderboard();
+      updateMyStats();
+      renderMatches(currentFilter);
+    } catch (e) {
+      showToast('❌ Chyba: ' + e.message, false);
+    }
   }
 
   async function recalcAllPoints() {

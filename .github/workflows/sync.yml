@@ -2,7 +2,7 @@ name: Sync zápasů MS 2026
 
 on:
   schedule:
-    - cron: '*/5 * * * *'   # každých 5 minut
+    - cron: '*/30 * * * *'  # každých 30 minut
   workflow_dispatch:          # možnost spustit ručně z GitHubu
 
 jobs:
