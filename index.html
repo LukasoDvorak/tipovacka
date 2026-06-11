@@ -1282,6 +1282,7 @@
       await loadUserData();
     } catch(e) {
       console.error('Chyba při načítání dat:', e);
+      showToast('❌ Chyba načítání: ' + e.message, false);
     }
 
     // Skryj loading, zobraz app (i při chybě)
