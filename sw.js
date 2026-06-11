@@ -1,4 +1,4 @@
-const CACHE = 'tipovacka-v2';
+const CACHE = 'tipovacka-v3';
 const ASSETS = ['/tipovacka/', '/tipovacka/index.html'];
 
 self.addEventListener('install', e => {
@@ -11,6 +11,13 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Externí API requesty (Supabase, football-data) necachujeme — jen propouštime
+  const url = e.request.url;
+  if (!url.startsWith(self.location.origin)) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
   e.respondWith(
     fetch(e.request)
       .then(r => {
