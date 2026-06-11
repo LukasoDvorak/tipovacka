@@ -1,0 +1,22 @@
+name: Sync zápasů MS 2026
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # každých 5 minut
+  workflow_dispatch:          # možnost spustit ručně z GitHubu
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Sync zápasů a gólů
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
+        run: node sync_matches.js
