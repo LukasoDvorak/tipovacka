@@ -1277,10 +1277,14 @@
     if (loadingEl) loadingEl.style.display = 'flex';
 
     // Načti data před zobrazením app
-    await loadMatchesFromDB();
-    await loadUserData();
+    try {
+      await loadMatchesFromDB();
+      await loadUserData();
+    } catch(e) {
+      console.error('Chyba při načítání dat:', e);
+    }
 
-    // Skryj loading, zobraz app
+    // Skryj loading, zobraz app (i při chybě)
     if (loadingEl) loadingEl.style.display = 'none';
     const app = document.getElementById('app');
     app.style.display = window.innerWidth >= 900 ? 'grid' : 'block';
