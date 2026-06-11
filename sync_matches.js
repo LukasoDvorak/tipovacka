@@ -143,11 +143,25 @@ async function main() {
   await supabaseFetch('/rest/v1/matches', 'POST', rows);
   console.log(`✅ Skóre uloženo pro ${rows.length} zápasů`);
 
-  // Sync gólů pro dokončené zápasy
+  // Pro dokončené zápasy načti detail (skóre + góly) — list endpoint nevrací skóre
   const finishedMatches = relevantMatches.filter(m => m.status === 'FINISHED');
   let totalGoals = 0;
   for (const m of finishedMatches) {
     try {
+      const detail = await fetchMatchDetail(m.id);
+      if (detail) {
+        const homeScore = detail.score?.fullTime?.home ?? null;
+        const awayScore = detail.score?.fullTime?.away ?? null;
+        if (homeScore !== null) {
+          await supabaseFetch(`/rest/v1/matches?id=eq.${m.id}`, 'PATCH', {
+            home_score: homeScore,
+            away_score: awayScore,
+            status: 'done',
+          });
+          console.log(`   📊 ${m.homeTeam.name} ${homeScore}:${awayScore} ${m.awayTeam.name}`);
+        }
+      }
+      await new Promise(r => setTimeout(r, 700));
       const count = await syncGoals(
         String(m.id), m.id,
         m.homeTeam.name, m.awayTeam.name
