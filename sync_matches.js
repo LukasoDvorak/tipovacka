@@ -1,10 +1,11 @@
-// Automatický sync zápasů MS 2026 z football-data.org do Supabase
-// Spouští se přes GitHub Actions každých 5 minut
+// Automatický sync zápasů MS 2026 z worldcup26.ir do Supabase
+// Zdroj: https://github.com/rezarahiminia/worldcup2026 (zdarma, bez API klíče)
+// Spouští se přes GitHub Actions každých 30 minut
 // Ručně: SUPABASE_SECRET_KEY=xxx node sync_matches.js
 
-const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY || '553a3ff2fe8046caaa4a3ce6693fb2af';
 const SUPABASE_URL = 'https://upqmxwaulsjagkranahy.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
+const API_BASE = 'https://worldcup26.ir/get';
 
 if (!SUPABASE_KEY) {
   console.error('❌ Chybí SUPABASE_SECRET_KEY');
@@ -24,46 +25,54 @@ const TEAM_FLAGS = {
   'ECU': '🇪🇨', 'COL': '🇨🇴', 'VEN': '🇻🇪', 'CHI': '🇨🇱', 'PER': '🇵🇪',
   'BOL': '🇧🇴', 'PAR': '🇵🇾', 'CRC': '🇨🇷', 'PAN': '🇵🇦', 'HON': '🇭🇳',
   'NZL': '🇳🇿', 'PHI': '🇵🇭', 'THA': '🇹🇭', 'IND': '🇮🇳', 'CHN': '🇨🇳',
-  'URY': '🇺🇾', 'ALG': '🇩🇿', 'KSA': '🇸🇦', 'TUN': '🇹🇳', 'HAI': '🇭🇹',
-  'BIH': '🇧🇦', 'CPV': '🇨🇻', 'COD': '🇨🇩', 'CIV': '🇨🇮', 'IRQ': '🇮🇶',
-  'UZB': '🇺🇿', 'SCO': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'CUW': '🇨🇼',
+  'ALG': '🇩🇿', 'TUN': '🇹🇳', 'HAI': '🇭🇹', 'BIH': '🇧🇦', 'CPV': '🇨🇻',
+  'COD': '🇨🇩', 'CIV': '🇨🇮', 'IRQ': '🇮🇶', 'UZB': '🇺🇿', 'SCO': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'CUW': '🇨🇼', 'KSA': '🇸🇦', 'MLI': '🇲🇱', 'NMI': '🇲🇵',
 };
 
-function flag(tla) {
-  return TEAM_FLAGS[tla] || '🏳️';
+function flag(fifaCode) {
+  return TEAM_FLAGS[fifaCode] || '🏳️';
 }
 
-function matchStatus(apiStatus) {
-  if (apiStatus === 'FINISHED') return 'done';
-  if (apiStatus === 'IN_PLAY' || apiStatus === 'PAUSED') return 'live';
-  return 'open';
+// Parsuje scorers string formátu: {"J. Quiñones 9'","R. Jiménez 67'"}
+// nebo "null"
+function parseScorers(scorersStr, teamName) {
+  if (!scorersStr || scorersStr === 'null' || scorersStr === '{}') return [];
+  try {
+    // Odstraň { a } a rozděluj čárkou před uvozovkami
+    const inner = scorersStr.replace(/^\{/, '').replace(/\}$/, '');
+    // Najdi všechny položky v uvozovkách
+    const matches = inner.match(/[“””][^“””]+[“””]/g) || [];
+    return matches.map(s => {
+      const clean = s.replace(/^[“””]/, '').replace(/[“””]$/, '').trim();
+      // Parsuj "Jméno Příjmení 67'" nebo "Jméno Příjmení 67' (pen.)"
+      const minuteMatch = clean.match(/(\d+)['′]/);
+      const minute = minuteMatch ? parseInt(minuteMatch[1]) : null;
+      const player_name = clean.replace(/\s*\d+['′].*$/, '').trim();
+      return { player_name, team: teamName, minute };
+    }).filter(g => g.player_name);
+  } catch (e) {
+    console.warn('   ⚠️ Nelze parsovat střelce:', scorersStr, e.message);
+    return [];
+  }
 }
 
-function matchPhase(stage) {
-  if (stage === 'GROUP_STAGE') return 'group';
-  if (stage === 'ROUND_OF_16') return 'r16';
-  if (stage === 'QUARTER_FINALS') return 'qf';
-  if (stage === 'SEMI_FINALS') return 'sf';
-  if (stage === 'FINAL') return 'final';
+function matchStatus(g) {
+  if (g.finished === 'TRUE') return 'done';
+  const t = (g.time_elapsed || '').toLowerCase();
+  if (t === 'notstarted' || t === '' || t === '0') return 'open';
+  return 'live';
+}
+
+function matchPhase(type) {
+  if (!type) return 'group';
+  const t = type.toLowerCase();
+  if (t === 'group') return 'group';
+  if (t.includes('16') || t === 'round_of_16') return 'r16';
+  if (t.includes('quarter')) return 'qf';
+  if (t.includes('semi')) return 'sf';
+  if (t.includes('final') && !t.includes('semi')) return 'final';
   return 'group';
-}
-
-async function fetchAllMatches() {
-  const res = await fetch('https://api.football-data.org/v4/competitions/WC/matches?season=2026', {
-    headers: { 'X-Auth-Token': FOOTBALL_API_KEY }
-  });
-  if (!res.ok) throw new Error(`API chyba: ${res.status} ${await res.text()}`);
-  const data = await res.json();
-  return data.matches || [];
-}
-
-async function fetchMatchDetail(apiMatchId) {
-  const res = await fetch(`https://api.football-data.org/v4/matches/${apiMatchId}`, {
-    headers: { 'X-Auth-Token': FOOTBALL_API_KEY }
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data;
 }
 
 async function supabaseFetch(path, method, body) {
@@ -82,104 +91,99 @@ async function supabaseFetch(path, method, body) {
   return text ? JSON.parse(text) : null;
 }
 
-async function syncGoals(matchId, apiMatchId, homeTeamName, awayTeamName) {
-  const detail = await fetchMatchDetail(apiMatchId);
-  if (!detail || !detail.goals) return 0;
-
-  const goals = detail.goals;
-  if (goals.length === 0) return 0;
-
-  // Smaž stávající góly pro tento zápas a nahraď novými (jednoduchý přístup)
-  await supabaseFetch(`/rest/v1/goals?match_id=eq.${matchId}`, 'DELETE');
-
-  const rows = goals.map(g => ({
-    match_id: String(matchId),
-    player_name: g.scorer?.name || 'Neznámý',
-    team: g.team?.name || '',
-    minute: g.minute || null,
-  }));
-
-  if (rows.length > 0) {
-    await supabaseFetch('/rest/v1/goals', 'POST', rows);
-  }
-
-  return rows.length;
-}
-
 async function main() {
   console.log(`🔄 Sync spuštěn: ${new Date().toISOString()}`);
 
-  const allMatches = await fetchAllMatches();
-  console.log(`📋 Staženo ${allMatches.length} zápasů z API`);
+  // Stáhni zápasy a týmy
+  const [gamesRes, teamsRes] = await Promise.all([
+    fetch(`${API_BASE}/games`).then(r => r.json()),
+    fetch(`${API_BASE}/teams`).then(r => r.json()),
+  ]);
 
-  // Synchronizuj všechny live nebo dokončené zápasy (ne budoucí open)
-  const relevantMatches = allMatches.filter(m =>
-    ['IN_PLAY', 'PAUSED', 'FINISHED'].includes(m.status)
-  );
+  const games = Array.isArray(gamesRes) ? gamesRes : gamesRes.games || gamesRes.data || [];
+  const teams = Array.isArray(teamsRes) ? teamsRes : teamsRes.teams || teamsRes.data || [];
 
-  console.log(`⚽ Relevantní zápasy (live/done): ${relevantMatches.length}`);
+  console.log(`📋 Staženo ${games.length} zápasů, ${teams.length} týmů`);
 
-  if (relevantMatches.length === 0) {
+  // Mapuj team_id → { fifaCode, name }
+  const teamMap = {};
+  for (const t of teams) {
+    teamMap[t.id] = { fifaCode: t.fifa_code, name: t.name_en };
+  }
+
+  // Filtruj relevantní zápasy (live nebo dokončené)
+  const relevant = games.filter(g => g.finished === 'TRUE' || matchStatus(g) === 'live');
+  console.log(`⚽ Relevantní zápasy (live/done): ${relevant.length}`);
+
+  if (relevant.length === 0) {
     console.log('💤 Žádné aktivní zápasy, sync přeskočen');
     return;
   }
 
-  // Upsert skóre a statusů
-  const rows = relevantMatches.map(m => ({
-    id: String(m.id),
-    home_team: `${flag(m.homeTeam.tla)} ${m.homeTeam.name}`,
-    away_team: `${flag(m.awayTeam.tla)} ${m.awayTeam.name}`,
-    home_flag: flag(m.homeTeam.tla),
-    away_flag: flag(m.awayTeam.tla),
-    group_name: m.group ? m.group.replace('GROUP_', 'Skupina ') : m.stage,
-    kickoff_at: m.utcDate,
-    status: matchStatus(m.status),
-    home_score: m.score?.fullTime?.home ?? m.score?.halfTime?.home ?? null,
-    away_score: m.score?.fullTime?.away ?? m.score?.halfTime?.away ?? null,
-    phase: matchPhase(m.stage),
-    api_match_id: m.id,
-  }));
+  let updated = 0;
+  let goalsTotal = 0;
 
-  await supabaseFetch('/rest/v1/matches', 'POST', rows);
-  console.log(`✅ Skóre uloženo pro ${rows.length} zápasů`);
+  for (const g of relevant) {
+    const homeTeam = teamMap[g.home_team_id] || { fifaCode: '???', name: g.home_team_name_en };
+    const awayTeam = teamMap[g.away_team_id] || { fifaCode: '???', name: g.away_team_name_en };
+    const homeFlag = flag(homeTeam.fifaCode);
+    const awayFlag = flag(awayTeam.fifaCode);
+    const status = matchStatus(g);
+    const homeScore = g.home_score !== null && g.home_score !== '' && g.home_score !== '0' || status === 'done'
+      ? parseInt(g.home_score) || 0
+      : null;
+    const awayScore = g.away_score !== null && g.away_score !== '' && g.away_score !== '0' || status === 'done'
+      ? parseInt(g.away_score) || 0
+      : null;
 
-  // Pro dokončené zápasy načti detail (skóre + góly) — list endpoint nevrací skóre
-  const finishedMatches = relevantMatches.filter(m => m.status === 'FINISHED');
-  let totalGoals = 0;
-  for (const m of finishedMatches) {
-    try {
-      const detail = await fetchMatchDetail(m.id);
-      if (detail) {
-        const homeScore = detail.score?.fullTime?.home ?? null;
-        const awayScore = detail.score?.fullTime?.away ?? null;
-        if (homeScore !== null) {
-          await supabaseFetch(`/rest/v1/matches?id=eq.${m.id}`, 'PATCH', {
-            home_score: homeScore,
-            away_score: awayScore,
-            status: 'done',
-          });
-          console.log(`   📊 ${m.homeTeam.name} ${homeScore}:${awayScore} ${m.awayTeam.name}`);
+    // Upsert zápas — použij worldcup26 id jako match_id (prefixované aby nekolidovalo)
+    const matchId = `wc26_${g.id}`;
+
+    // Najdi zápas v Supabase podle home+away týmu (zápasy mohly být importovány z jiného API)
+    const existing = await supabaseFetch(
+      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&select=id,status,home_score`,
+      'GET'
+    );
+
+    if (existing && existing.length > 0) {
+      const dbMatch = existing[0];
+      // Aktualizuj skóre a status
+      await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', {
+        status,
+        home_score: homeScore,
+        away_score: awayScore,
+      });
+
+      // Sync gólů pro dokončené zápasy
+      if (status === 'done') {
+        const homeScorers = parseScorers(g.home_scorers, homeTeam.name);
+        const awayScorers = parseScorers(g.away_scorers, awayTeam.name);
+        const allGoals = [...homeScorers, ...awayScorers];
+
+        if (allGoals.length > 0) {
+          await supabaseFetch(`/rest/v1/goals?match_id=eq.${dbMatch.id}`, 'DELETE');
+          const goalRows = allGoals.map(gl => ({
+            match_id: dbMatch.id,
+            player_name: gl.player_name,
+            team: gl.team,
+            minute: gl.minute,
+          }));
+          await supabaseFetch('/rest/v1/goals', 'POST', goalRows);
+          goalsTotal += allGoals.length;
+          console.log(`   ⚽ ${homeTeam.name} ${homeScore}:${awayScore} ${awayTeam.name} — střelci: ${allGoals.map(x => x.player_name).join(', ')}`);
+        } else {
+          console.log(`   📊 ${homeTeam.name} ${homeScore}:${awayScore} ${awayTeam.name}`);
         }
+      } else {
+        console.log(`   🔴 LIVE: ${homeTeam.name} ${homeScore ?? '?'}:${awayScore ?? '?'} ${awayTeam.name}`);
       }
-      await new Promise(r => setTimeout(r, 700));
-      const count = await syncGoals(
-        String(m.id), m.id,
-        m.homeTeam.name, m.awayTeam.name
-      );
-      if (count > 0) {
-        console.log(`   ⚽ ${m.homeTeam.name} vs ${m.awayTeam.name}: ${count} gólů`);
-        totalGoals += count;
-      }
-      // Pause aby se nepřekročil rate limit API (10 req/min)
-      await new Promise(r => setTimeout(r, 700));
-    } catch (e) {
-      console.warn(`   ⚠️ Góly pro zápas ${m.id} se nepodařilo načíst: ${e.message}`);
+      updated++;
+    } else {
+      console.warn(`   ⚠️ Zápas nenalezen v DB: ${homeTeam.name} vs ${awayTeam.name}`);
     }
   }
 
-  if (totalGoals > 0) {
-    console.log(`⚽ Celkem syncnutých gólů: ${totalGoals}`);
-  }
+  console.log(`✅ Aktualizováno ${updated} zápasů, ${goalsTotal} gólů`);
 
   // Přepočítej body
   try {
