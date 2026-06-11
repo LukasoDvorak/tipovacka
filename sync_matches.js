@@ -91,19 +91,52 @@ async function supabaseFetch(path, method, body) {
   return text ? JSON.parse(text) : null;
 }
 
+// Zkusí matchnout zkrácené jméno (např. "R. Jiménez") na plné jméno z players tabulky
+// Porovnává příjmení (poslední slovo) bez diakritiky
+function normalize(str) {
+  return str.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+
+function matchPlayerName(apiName, playersList) {
+  if (!playersList || playersList.length === 0) return apiName;
+
+  const normApi = normalize(apiName);
+
+  // 1. Přesná shoda
+  const exact = playersList.find(p => normalize(p.player_name) === normApi);
+  if (exact) return exact.player_name;
+
+  // 2. Shoda příjmení (poslední slovo)
+  const apiLastName = normApi.split(' ').pop();
+  const byLastName = playersList.filter(p => normalize(p.player_name).split(' ').pop() === apiLastName);
+  if (byLastName.length === 1) return byLastName[0].player_name;
+
+  // 3. Shoda příjmení + iniciála (např. "R. Jiménez" → příjmení "jimenez", iniciála "r")
+  const apiInitial = normApi.split('.')[0]?.trim();
+  if (apiInitial && byLastName.length > 1) {
+    const byInitial = byLastName.find(p => normalize(p.player_name).charAt(0) === apiInitial);
+    if (byInitial) return byInitial.player_name;
+  }
+
+  // 4. Nenalezeno — vrátíme původní jméno z API
+  return apiName;
+}
+
 async function main() {
   console.log(`🔄 Sync spuštěn: ${new Date().toISOString()}`);
 
-  // Stáhni zápasy a týmy
-  const [gamesRes, teamsRes] = await Promise.all([
+  // Stáhni zápasy, týmy a hráče (pro matching jmen)
+  const [gamesRes, teamsRes, playersRes] = await Promise.all([
     fetch(`${API_BASE}/games`).then(r => r.json()),
     fetch(`${API_BASE}/teams`).then(r => r.json()),
+    supabaseFetch('/rest/v1/players?select=player_name', 'GET'),
   ]);
 
   const games = Array.isArray(gamesRes) ? gamesRes : gamesRes.games || gamesRes.data || [];
   const teams = Array.isArray(teamsRes) ? teamsRes : teamsRes.teams || teamsRes.data || [];
+  const players = playersRes || [];
 
-  console.log(`📋 Staženo ${games.length} zápasů, ${teams.length} týmů`);
+  console.log(`📋 Staženo ${games.length} zápasů, ${teams.length} týmů, ${players.length} hráčů v DB`);
 
   // Mapuj team_id → { fifaCode, name }
   const teamMap = {};
@@ -139,9 +172,9 @@ async function main() {
     // Upsert zápas — použij worldcup26 id jako match_id (prefixované aby nekolidovalo)
     const matchId = `wc26_${g.id}`;
 
-    // Najdi zápas v Supabase podle home+away týmu (zápasy mohly být importovány z jiného API)
+    // Najdi zápas v Supabase podle home+away týmu
     const existing = await supabaseFetch(
-      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&select=id,status,home_score`,
+      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&away_team=ilike.*${encodeURIComponent(awayTeam.name)}*&select=id,status,home_score`,
       'GET'
     );
 
@@ -164,7 +197,7 @@ async function main() {
           await supabaseFetch(`/rest/v1/goals?match_id=eq.${dbMatch.id}`, 'DELETE');
           const goalRows = allGoals.map(gl => ({
             match_id: dbMatch.id,
-            player_name: gl.player_name,
+            player_name: matchPlayerName(gl.player_name, players),
             team: gl.team,
             minute: gl.minute,
           }));
