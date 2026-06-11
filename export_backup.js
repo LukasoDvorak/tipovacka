@@ -2,10 +2,20 @@
 // Spusť: node export_backup.js
 // Doporučeno: spouštět denně, commitovat do gitu
 
-const SUPABASE_URL = 'https://upqmxwaulsjagkranahy.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
 const fs = require('fs');
 const path = require('path');
+
+// Načti .env soubor
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+    const [k, v] = line.split('=');
+    if (k && v) process.env[k.trim()] = v.trim();
+  });
+}
+
+const SUPABASE_URL = 'https://upqmxwaulsjagkranahy.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
 
 async function fetchAll(table, select = '*') {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${select}&order=created_at`, {
