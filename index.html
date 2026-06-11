@@ -1900,7 +1900,7 @@
     const scoreHtml = m.status === 'locked'
       ? `<div style="font-size:13px;font-weight:700;color:var(--muted)">vs</div><div style="font-size:10px;color:var(--muted);margin-top:4px">${m.myTip ? `tvůj tip: ${m.myTip.h}:${m.myTip.a}` : 'bez tipu'}</div>`
       : m.status !== 'open'
-      ? `<div class="score-real">${m.result.h} : ${m.result.a}</div><div style="font-size:10px;color:var(--muted)">${m.myTip ? `tvůj tip: ${m.myTip.h}:${m.myTip.a}` : 'bez tipu'}</div>`
+      ? `<div class="score-real">${m.result ? `${m.result.h} : ${m.result.a}` : '? : ?'}</div><div style="font-size:10px;color:var(--muted)">${m.myTip ? `tvůj tip: ${m.myTip.h}:${m.myTip.a}` : 'bez tipu'}</div>`
       : isSaved
       ? `<div style="text-align:center"><div style="font-size:26px;font-weight:800;color:var(--accent)">${m.myTip.h} : ${m.myTip.a}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">tvůj tip</div></div>`
       : `<div class="score-tip">
