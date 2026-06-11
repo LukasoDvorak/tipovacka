@@ -1415,12 +1415,14 @@
     const { data } = await sb.from('leaderboard').select('*').limit(20);
     if (data) {
       LEADERBOARD.length = 0;
-      // Načti počty žetonů
+      // Načti počty žetonů (scorer_tips per user)
       const { data: tokens } = await sb.from('scorer_tips')
-        .select('user_id, count', { count: 'exact' })
+        .select('user_id')
         .in('user_id', data.map(p => p.id));
       const tokenMap = {};
-      if (tokens) tokens.forEach(t => tokenMap[t.user_id] = t.count);
+      if (tokens) tokens.forEach(t => {
+        tokenMap[t.user_id] = (tokenMap[t.user_id] || 0) + 1;
+      });
 
       data.forEach(p => LEADERBOARD.push({
         name: p.display_name,
