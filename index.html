@@ -782,7 +782,7 @@
     <div class="nav-logo">⚽ <span>MS 2026</span></div>
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:11px;color:var(--muted);line-height:1.3;text-align:right">
-        <span style="color:var(--border)">b83</span>
+        <span style="color:var(--border)">b84</span>
       </div>
       <div class="nav-user" onclick="logout()">👤 <span id="nav-name">Lukáš</span> · odhlásit</div>
     </div>
@@ -2359,8 +2359,7 @@
 
     // Tipy ostatních z DB (načteme async a doplníme)
     const othersHtml = `<div id="pre-others-section"></div>`;
-    if (PRE_LOCKED) {
-      setTimeout(async () => {
+    setTimeout(async () => {
         const [{ data: preTips }, { data: profiles }] = await Promise.all([
           sb.from('pre_tips').select('*'),
           sb.from('profiles').select('id,display_name'),
@@ -2389,7 +2388,6 @@
             </div>`).join('')}
           </div>`;
       }, 0);
-    }
 
     el.innerHTML = statusHtml + myTipsHtml + othersHtml;
   }
