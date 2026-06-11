@@ -1468,60 +1468,40 @@
   }
 
   async function syncFromApi() {
-    showToast('📡 Stahuji výsledky z API…');
+    let token = localStorage.getItem('gh_sync_token');
+    if (!token) {
+      token = prompt('Zadej GitHub token pro spuštění syncu:');
+      if (!token) return;
+      localStorage.setItem('gh_sync_token', token.trim());
+    }
+    showToast('📡 Spouštím sync přes GitHub Actions…');
     try {
-      const res = await fetch('https://api.football-data.org/v4/competitions/WC/matches?season=2026', {
-        headers: { 'X-Auth-Token': '553a3ff2fe8046caaa4a3ce6693fb2af' }
-      });
-      if (!res.ok) throw new Error('API chyba: ' + res.status);
-      const data = await res.json();
-      const relevant = (data.matches || []).filter(m => ['IN_PLAY','PAUSED','FINISHED'].includes(m.status));
-      if (relevant.length === 0) { showToast('Žádné aktivní/dokončené zápasy v API'); return; }
-
-      const rows = relevant.map(m => ({
-        id: String(m.id),
-        home_team: `${syncFlag(m.homeTeam.tla)} ${m.homeTeam.name}`,
-        away_team: `${syncFlag(m.awayTeam.tla)} ${m.awayTeam.name}`,
-        home_flag: syncFlag(m.homeTeam.tla),
-        away_flag: syncFlag(m.awayTeam.tla),
-        group_name: m.group ? m.group.replace('GROUP_', 'Skupina ') : m.stage,
-        kickoff_at: m.utcDate,
-        status: syncStatus(m.status),
-        home_score: m.score?.fullTime?.home ?? null,
-        away_score: m.score?.fullTime?.away ?? null,
-        phase: syncPhase(m.stage),
-        api_match_id: m.id,
-      }));
-
-      const { error } = await sb.from('matches').upsert(rows, { onConflict: 'id' });
-      if (error) throw new Error(error.message);
-
-      // Góly pro dokončené zápasy
-      const finished = relevant.filter(m => m.status === 'FINISHED');
-      for (const m of finished) {
-        const det = await fetch(`https://api.football-data.org/v4/matches/${m.id}`, {
-          headers: { 'X-Auth-Token': '553a3ff2fe8046caaa4a3ce6693fb2af' }
-        });
-        if (!det.ok) continue;
-        const d = await det.json();
-        if (!d.goals || d.goals.length === 0) continue;
-        await sb.from('goals').delete().eq('match_id', String(m.id));
-        const goals = d.goals.map(g => ({
-          match_id: String(m.id),
-          player_name: g.scorer?.name || 'Neznámý',
-          team: g.team?.name || '',
-          minute: g.minute || null,
-        }));
-        await sb.from('goals').insert(goals);
+      const res = await fetch(
+        'https://api.github.com/repos/LukasoDvorak/tipovacka/actions/workflows/sync.yml/dispatches',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token.trim(),
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ref: 'main' }),
+        }
+      );
+      if (res.status === 401) {
+        localStorage.removeItem('gh_sync_token');
+        throw new Error('Neplatný token — zadej ho znovu');
       }
-
-      await sb.rpc('recalc_points');
-      showToast(`✅ Syncnuto ${rows.length} zápasů, body přepočítány`);
-      await loadMatchesFromDB();
-      await loadUserData();
-      loadLeaderboard();
-      updateMyStats();
-      renderMatches(currentFilter);
+      if (!res.ok) throw new Error('GitHub API chyba: ' + res.status);
+      showToast('✅ Sync spuštěn — výsledky se uloží za ~30 sekund');
+      setTimeout(async () => {
+        await loadMatchesFromDB();
+        await loadUserData();
+        loadLeaderboard();
+        updateMyStats();
+        renderMatches(currentFilter);
+        showToast('🔄 Data aktualizována');
+      }, 35000);
     } catch (e) {
       showToast('❌ Chyba: ' + e.message, false);
     }
