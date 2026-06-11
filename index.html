@@ -1136,7 +1136,7 @@
       sb.from('matches').select('*').order('kickoff_at'),
       sb.from('goals').select('match_id, player_name'),
     ]);
-    if (error || !data) return;
+    if (error || !data) { console.error('loadMatchesFromDB error:', error); showToast('❌ DB chyba: ' + (error?.message || 'žádná data'), false); return; }
     // Seskup góly per zápas
     const goalMap = {};
     if (goals) goals.forEach(g => {
