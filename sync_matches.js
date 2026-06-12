@@ -90,6 +90,23 @@ function matchPhase(type) {
   return 'group';
 }
 
+async function fetchWithRetry(url, options = {}, retries = 3, delay = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res;
+    } catch (e) {
+      if (i < retries - 1) {
+        console.warn(`   ⚠️ Fetch selhal (${i+1}/${retries}): ${e.message} — zkouším znovu za ${delay/1000}s`);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        throw e;
+      }
+    }
+  }
+}
+
 async function supabaseFetch(path, method, body) {
   const res = await fetch(`${SUPABASE_URL}${path}`, {
     method: method || 'GET',
@@ -142,8 +159,8 @@ async function main() {
 
   // Stáhni zápasy, týmy a hráče (pro matching jmen)
   const [gamesRes, teamsRes, playersRes] = await Promise.all([
-    fetch(`${API_BASE}/games`).then(r => r.json()),
-    fetch(`${API_BASE}/teams`).then(r => r.json()),
+    fetchWithRetry(`${API_BASE}/games`).then(r => r.json()),
+    fetchWithRetry(`${API_BASE}/teams`).then(r => r.json()),
     supabaseFetch('/rest/v1/players?select=player_name', 'GET'),
   ]);
 
