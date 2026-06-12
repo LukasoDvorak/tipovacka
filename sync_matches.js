@@ -57,6 +57,20 @@ function parseScorers(scorersStr, teamName) {
   }
 }
 
+// Různé API používají různé názvy zemí — normalizujeme na football-data.org verzi
+const TEAM_NAME_MAP = {
+  'Czech Republic': 'Czechia',
+  'IR Iran': 'Iran',
+  'Korea Republic': 'South Korea',
+  'United States': 'United States',
+  'Ivory Coast': "Côte d'Ivoire",
+  'Bosnia and Herzegovina': 'Bosnia-Herzegovina',
+};
+
+function normalizeTeamName(name) {
+  return TEAM_NAME_MAP[name] || name;
+}
+
 function matchStatus(g) {
   if (g.finished === 'TRUE') return 'done';
   const t = (g.time_elapsed || '').toLowerCase();
@@ -157,8 +171,10 @@ async function main() {
   let goalsTotal = 0;
 
   for (const g of relevant) {
-    const homeTeam = teamMap[g.home_team_id] || { fifaCode: '???', name: g.home_team_name_en };
-    const awayTeam = teamMap[g.away_team_id] || { fifaCode: '???', name: g.away_team_name_en };
+    const homeTeamRaw = teamMap[g.home_team_id] || { fifaCode: '???', name: g.home_team_name_en };
+    const awayTeamRaw = teamMap[g.away_team_id] || { fifaCode: '???', name: g.away_team_name_en };
+    const homeTeam = { ...homeTeamRaw, name: normalizeTeamName(homeTeamRaw.name) };
+    const awayTeam = { ...awayTeamRaw, name: normalizeTeamName(awayTeamRaw.name) };
     const homeFlag = flag(homeTeam.fifaCode);
     const awayFlag = flag(awayTeam.fifaCode);
     const status = matchStatus(g);
