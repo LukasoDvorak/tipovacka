@@ -60,11 +60,12 @@ function parseScorers(scorersStr, teamName) {
 // Různé API používají různé názvy zemí — normalizujeme na football-data.org verzi
 const TEAM_NAME_MAP = {
   'Czech Republic': 'Czechia',
+  'Bosnia and Herzegovina': 'Bosnia-Herzegovina',
+  'Cape Verde': 'Cape Verde Islands',
+  'Democratic Republic of the Congo': 'Congo DR',
   'IR Iran': 'Iran',
   'Korea Republic': 'South Korea',
-  'United States': 'United States',
   'Ivory Coast': "Côte d'Ivoire",
-  'Bosnia and Herzegovina': 'Bosnia-Herzegovina',
 };
 
 function normalizeTeamName(name) {
