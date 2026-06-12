@@ -2108,14 +2108,17 @@
         : (m.status === 'live' ? 'LIVE' : 'BRZY');
       const resultColor = m.status === 'done' ? 'var(--green)' : m.status === 'live' ? 'var(--yellow)' : 'var(--muted)';
       return `<div class="match-compare">
-        <div class="match-compare-header" style="cursor:default">
+        <div class="match-compare-header" style="cursor:pointer;user-select:none" onclick="toggleMatchCompare('mc-${m.id}', this)">
           <span class="match-compare-teams">${m.home} vs ${m.away}<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">${m.date} · ${m.time}</span></span>
-          <span class="match-compare-result" style="color:${resultColor};display:flex;align-items:center;gap:6px">
-            ${resultStr}
-            ${m.status === 'live' ? `<span style="font-size:10px;font-weight:700;color:var(--red);animation:pulse 1.5s infinite">LIVE</span>${m.liveMin ? `<span style="font-size:10px;color:var(--muted);font-weight:600">${m.liveMin}'</span>` : ''}` : ''}
+          <span style="display:flex;align-items:center;gap:8px">
+            <span class="match-compare-result" style="color:${resultColor};display:flex;align-items:center;gap:6px">
+              ${resultStr}
+              ${m.status === 'live' ? `<span style="font-size:10px;font-weight:700;color:var(--red);animation:pulse 1.5s infinite">LIVE</span>${m.liveMin ? `<span style="font-size:10px;color:var(--muted);font-weight:600">${m.liveMin}'</span>` : ''}` : ''}
+            </span>
+            <span class="mc-chevron" style="font-size:11px;color:var(--muted);transition:transform .2s">▼</span>
           </span>
         </div>
-        <div class="match-compare-body">
+        <div id="mc-${m.id}" class="match-compare-body">
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:6px 4px 4px;font-weight:600">
             <span style="width:80px;flex-shrink:0">Hráč</span><span style="width:60px;text-align:center;flex-shrink:0">Vítěz</span><span style="width:48px;text-align:center;flex-shrink:0">Skóre</span><span style="flex:1;text-align:center">Střelci</span><span style="width:42px;text-align:right;flex-shrink:0">Body</span>
           </div>
@@ -2123,6 +2126,15 @@
         </div>
       </div>`;
     }).join('');
+  }
+
+  function toggleMatchCompare(id, header) {
+    const body = document.getElementById(id);
+    if (!body) return;
+    const chevron = header.querySelector('.mc-chevron');
+    const isHidden = body.style.display === 'none';
+    body.style.display = isHidden ? '' : 'none';
+    if (chevron) chevron.style.transform = isHidden ? '' : 'rotate(-90deg)';
   }
 
   // ── Quota ──
