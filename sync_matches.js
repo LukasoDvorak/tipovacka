@@ -39,13 +39,16 @@ function flag(fifaCode) {
 function parseScorers(scorersStr, teamName) {
   if (!scorersStr || scorersStr === 'null' || scorersStr === '{}') return [];
   try {
-    // Odstraň { a } a rozděluj čárkou před uvozovkami
-    const inner = scorersStr.replace(/^\{/, '').replace(/\}$/, '');
-    // Najdi všechny položky v uvozovkách
-    const matches = inner.match(/[“””][^“””]+[“””]/g) || [];
-    return matches.map(s => {
-      const clean = s.replace(/^[“””]/, '').replace(/[“””]$/, '').trim();
-      // Parsuj "Jméno Příjmení 67'" nebo "Jméno Příjmení 67' (pen.)"
+    // Odstraň { a } a všechny uvozovky (ASCII 0x22, curly 0x201C/0x201D) přes charCode
+    const stripped = [...scorersStr].map(c => {
+      const code = c.charCodeAt(0);
+      if (code === 0x22 || code === 0x201C || code === 0x201D) return '|';
+      return c;
+    }).join('').replace(/^\{/, '').replace(/\}$/, '');
+    // Rozdělení: položky jsou mezi | a |
+    const parts = stripped.split('|').map(s => s.replace(/^,/, '').trim()).filter(s => s && s !== ',');
+    return parts.map(clean => {
+      // Parsuj “Jméno Příjmení 67'” nebo “Jméno Příjmení 67' (pen.)”
       const minuteMatch = clean.match(/(\d+)['′]/);
       const minute = minuteMatch ? parseInt(minuteMatch[1]) : null;
       const player_name = clean.replace(/\s*\d+['′].*$/, '').trim();
