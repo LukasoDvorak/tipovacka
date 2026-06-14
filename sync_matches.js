@@ -92,7 +92,11 @@ const CZ_TO_EN = {
   'thajsko':'Thailand',
   'ukrajina':'Ukraine',
   'venezuela':'Venezuela',
-  'pobřeží slonoviny':'Côte d\'Ivoire',"pobřeží slonoviny":"Côte d'Ivoire",
+  'pobřeží slonoviny':"Côte d'Ivoire",'pob. slonoviny':"Côte d'Ivoire",'pob slonoviny':"Côte d'Ivoire",
+  's. arábie':'Saudi Arabia','saúd. arábie':'Saudi Arabia',
+  'bosna a h.':'Bosnia-Herzegovina','bosna a h':'Bosnia-Herzegovina',
+  'švédsko':'Sweden',
+  'rakousko':'Austria',
 };
 
 if (!SUPABASE_KEY) {
