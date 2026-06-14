@@ -5,9 +5,34 @@
 
 const SUPABASE_URL = 'https://upqmxwaulsjagkranahy.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const API_BASE = 'https://worldcup26.ir/get';
-const FIFA_YT_CHANNEL = 'UCpcTrCXblq78GZrTUTLWeBw';
+const CT_SPORT_URL = 'https://sport.ceskatelevize.cz/video-vypis/rubrika/fotbal/mistrovstvi-sveta-53';
+
+// Mapování českých názvů zemí → anglické (jak jsou v DB)
+const CZ_TO_EN = {
+  'afghánistán':'Afghanistan','albánie':'Albania','alžírsko':'Algeria','angola':'Angola',
+  'argentina':'Argentina','austrálie':'Australia','rakousko':'Austria','bahrajn':'Bahrain',
+  'belgie':'Belgium','bolívie':'Bolivia','bosna':'Bosnia-Herzegovina','bosna a hercegovina':'Bosnia-Herzegovina',
+  'brazílie':'Brazil','kamerun':'Cameroon','kanada':'Canada','kapverdy':'Cape Verde Islands',
+  'chile':'Chile','čína':'China','kolumbie':'Colombia','kongo':'Congo DR',
+  'kostarika':'Costa Rica','chorvatsko':'Croatia','curacao':'Curaçao','česká republika':'Czechia',
+  'česko':'Czechia','dánsko':'Denmark','ekvádor':'Ecuador','egypt':'Egypt',
+  'anglie':'England','francie':'France','německo':'Germany','ghana':'Ghana',
+  'řecko':'Greece','haiti':'Haiti','honduras':'Honduras','maďarsko':'Hungary',
+  'indie':'India','indonésie':'Indonesia','írán':'Iran','irák':'Iraq',
+  'irsko':'Ireland','izrael':'Israel','itálie':'Italy','japonsko':'Japan',
+  'jordánsko':'Jordan','jižní korea':'South Korea','korea':'South Korea','katar':'Qatar',
+  'mali':'Mali','maroko':'Morocco','mexiko':'Mexico','nizozemsko':'Netherlands',
+  'nový zéland':'New Zealand','nigérie':'Nigeria','norsko':'Norway','panama':'Panama',
+  'paraguay':'Paraguay','peru':'Peru','filipíny':'Philippines','polsko':'Poland',
+  'portugalsko':'Portugal','rumunsko':'Romania','saúdská arábie':'Saudi Arabia',
+  'skotsko':'Scotland','senegal':'Senegal','srbsko':'Serbia','slovensko':'Slovakia',
+  'slovinsko':'Slovenia','jihoafrická republika':'South Africa','španělsko':'Spain',
+  'švýcarsko':'Switzerland','thajsko':'Thailand','tunisko':'Tunisia','turecko':'Türkiye',
+  'turkiye':'Türkiye','ukraine':'Ukraine','ukrajina':'Ukraine','usa':'USA',
+  'spojené státy':'USA','uruguay':'Uruguay','uzbekistán':'Uzbekistan','venezuela':'Venezuela',
+  'wales':'Wales','zambie':'Zambia',
+};
 
 if (!SUPABASE_KEY) {
   console.error('❌ Chybí SUPABASE_SECRET_KEY');
@@ -159,26 +184,64 @@ function matchPlayerName(apiName, playersList) {
   return apiName;
 }
 
-// Hledá highlight video na FIFA YouTube kanálu pro daný zápas
-async function findHighlight(homeTeam, awayTeam) {
-  if (!YOUTUBE_API_KEY) return null;
+// Stáhne seznam highlights z ČT sport a matchuje na zápasy podle jmen týmů
+let ctHighlightsCache = null;
+async function loadCtHighlights() {
+  if (ctHighlightsCache) return ctHighlightsCache;
   try {
-    const query = encodeURIComponent(`${homeTeam} v ${awayTeam} FIFA World Cup 2026 Highlights`);
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${FIFA_YT_CHANNEL}&q=${query}&type=video&order=date&maxResults=3&key=${YOUTUBE_API_KEY}`;
-    const res = await fetchWithRetry(url);
-    const data = await res.json();
-    if (!data.items || data.items.length === 0) return null;
-    // Najdi video jehož název obsahuje obě jména týmů
-    const normHome = homeTeam.toLowerCase().replace(/[^a-z]/g, '');
-    const normAway = awayTeam.toLowerCase().replace(/[^a-z]/g, '');
-    const match = data.items.find(item => {
-      const title = item.snippet.title.toLowerCase().replace(/[^a-z]/g, '');
-      return title.includes(normHome) && title.includes(normAway);
-    });
-    if (!match) return null;
-    return `https://www.youtube.com/watch?v=${match.id.videoId}`;
+    const res = await fetchWithRetry(CT_SPORT_URL);
+    const html = await res.text();
+    // Najdi všechny linky na videa se slugem obsahujícím "sestrih" nebo "zaznam"
+    const re = /href="(\/video\/[^"]+)"/g;
+    const titleRe = /<h[23][^>]*>([^<]+)<\/h[23]>/g;
+    const videos = [];
+    let m;
+    // Extrahuj href + hledej nadpisy poblíž
+    const chunks = html.split(/href="\/video\//);
+    for (let i = 1; i < chunks.length; i++) {
+      const slug = chunks[i].split('"')[0];
+      const url = `https://sport.ceskatelevize.cz/video/${slug}`;
+      // Najdi název v okolním textu (do 500 znaků)
+      const nearby = chunks[i].substring(0, 500);
+      const titleMatch = nearby.match(/<(?:h[23]|p)[^>]*>([^<]{5,80})<\/(?:h[23]|p)>/);
+      const title = titleMatch ? titleMatch[1].trim() : slug.replace(/-\d+$/, '').replace(/-/g, ' ');
+      videos.push({ url, title: title.toLowerCase() });
+    }
+    ctHighlightsCache = videos;
+    console.log(`   📺 ČT sport: nalezeno ${videos.length} videí`);
+    return videos;
   } catch (e) {
-    console.warn('   ⚠️ YouTube search selhal:', e.message);
+    console.warn('   ⚠️ ČT sport scraping selhal:', e.message);
+    return [];
+  }
+}
+
+function normCz(s) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+
+// Převede anglické jméno týmu z DB na normalizované české pro matching
+function enToCzNorm(enName) {
+  const lower = enName.toLowerCase();
+  for (const [cz, en] of Object.entries(CZ_TO_EN)) {
+    if (en.toLowerCase() === lower) return normCz(cz);
+  }
+  return normCz(enName);
+}
+
+async function findHighlight(homeTeam, awayTeam) {
+  try {
+    const videos = await loadCtHighlights();
+    const normHome = enToCzNorm(homeTeam);
+    const normAway = enToCzNorm(awayTeam);
+    // Hledej video jehož titulek nebo slug obsahuje obě jména
+    const hit = videos.find(v => {
+      const t = normCz(v.title);
+      return t.includes(normHome) && t.includes(normAway);
+    });
+    return hit ? hit.url : null;
+  } catch (e) {
+    console.warn('   ⚠️ findHighlight selhal:', e.message);
     return null;
   }
 }
