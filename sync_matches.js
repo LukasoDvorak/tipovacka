@@ -341,7 +341,10 @@ async function main() {
 
         // Hledej highlight video pokud ještě nemáme URL
         if (!dbMatch.highlight_url) {
-          const highlightUrl = await findHighlight(homeTeam.name, awayTeam.name);
+          // Odstraň emoji vlajku ze začátku jména
+          const cleanHome = homeTeam.name.replace(/^\S+\s/, '');
+          const cleanAway = awayTeam.name.replace(/^\S+\s/, '');
+          const highlightUrl = await findHighlight(cleanHome, cleanAway);
           if (highlightUrl) {
             await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { highlight_url: highlightUrl });
             console.log(`   🎬 Highlight nalezen: ${highlightUrl}`);
