@@ -5,7 +5,9 @@
 
 const SUPABASE_URL = 'https://upqmxwaulsjagkranahy.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const API_BASE = 'https://worldcup26.ir/get';
+const FIFA_YT_CHANNEL = 'UCpcTrCXblq78GZrTUTLWeBw';
 
 if (!SUPABASE_KEY) {
   console.error('❌ Chybí SUPABASE_SECRET_KEY');
@@ -157,6 +159,30 @@ function matchPlayerName(apiName, playersList) {
   return apiName;
 }
 
+// Hledá highlight video na FIFA YouTube kanálu pro daný zápas
+async function findHighlight(homeTeam, awayTeam) {
+  if (!YOUTUBE_API_KEY) return null;
+  try {
+    const query = encodeURIComponent(`${homeTeam} v ${awayTeam} FIFA World Cup 2026 Highlights`);
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${FIFA_YT_CHANNEL}&q=${query}&type=video&order=date&maxResults=3&key=${YOUTUBE_API_KEY}`;
+    const res = await fetchWithRetry(url);
+    const data = await res.json();
+    if (!data.items || data.items.length === 0) return null;
+    // Najdi video jehož název obsahuje obě jména týmů
+    const normHome = homeTeam.toLowerCase().replace(/[^a-z]/g, '');
+    const normAway = awayTeam.toLowerCase().replace(/[^a-z]/g, '');
+    const match = data.items.find(item => {
+      const title = item.snippet.title.toLowerCase().replace(/[^a-z]/g, '');
+      return title.includes(normHome) && title.includes(normAway);
+    });
+    if (!match) return null;
+    return `https://www.youtube.com/watch?v=${match.id.videoId}`;
+  } catch (e) {
+    console.warn('   ⚠️ YouTube search selhal:', e.message);
+    return null;
+  }
+}
+
 async function main() {
   console.log(`🔄 Sync spuštěn: ${new Date().toISOString()}`);
 
@@ -211,7 +237,7 @@ async function main() {
 
     // Najdi zápas v Supabase podle home+away týmu
     const existing = await supabaseFetch(
-      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&away_team=ilike.*${encodeURIComponent(awayTeam.name)}*&select=id,status,home_score`,
+      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&away_team=ilike.*${encodeURIComponent(awayTeam.name)}*&select=id,status,home_score,highlight_url`,
       'GET'
     );
 
@@ -243,6 +269,15 @@ async function main() {
           console.log(`   ⚽ ${homeTeam.name} ${homeScore}:${awayScore} ${awayTeam.name} — střelci: ${allGoals.map(x => x.player_name).join(', ')}`);
         } else {
           console.log(`   📊 ${homeTeam.name} ${homeScore}:${awayScore} ${awayTeam.name}`);
+        }
+
+        // Hledej highlight video pokud ještě nemáme URL
+        if (!dbMatch.highlight_url) {
+          const highlightUrl = await findHighlight(homeTeam.name, awayTeam.name);
+          if (highlightUrl) {
+            await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { highlight_url: highlightUrl });
+            console.log(`   🎬 Highlight nalezen: ${highlightUrl}`);
+          }
         }
       } else {
         console.log(`   🔴 LIVE: ${homeTeam.name} ${homeScore ?? '?'}:${awayScore ?? '?'} ${awayTeam.name}`);

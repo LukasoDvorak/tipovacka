@@ -1994,8 +1994,12 @@
       othersHtml = `<div style="font-size:11px;color:var(--muted);margin-top:8px">🔒 Tipy ostatních se zobrazí po uzavření tipování</div>`;
     }
 
+    const highlightBtn = m.status === 'done' && m.highlight_url
+      ? `<a href="${m.highlight_url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--accent);text-decoration:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap">▶ Sestřih</a>`
+      : '';
+
     return `<div class="match-card">
-      <div class="match-header"><span>${m.group} · ${m.date} · ${m.time}</span>${statusHtml}</div>
+      <div class="match-header"><span>${m.group} · ${m.date} · ${m.time}</span><div style="display:flex;align-items:center;gap:8px">${highlightBtn}${statusHtml}</div></div>
       <div class="match-body">
         <div class="team">
           <div class="team-flag" style="font-size:28px">${m.home.split(' ')[0]}</div>
