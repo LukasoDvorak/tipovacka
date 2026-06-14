@@ -27,7 +27,7 @@ const CZ_TO_EN = {
   'paraguay':'Paraguay','peru':'Peru','filipíny':'Philippines','polsko':'Poland',
   'portugalsko':'Portugal','rumunsko':'Romania','saúdská arábie':'Saudi Arabia',
   'skotsko':'Scotland','senegal':'Senegal','srbsko':'Serbia','slovensko':'Slovakia',
-  'slovinsko':'Slovenia','jihoafrická republika':'South Africa','španělsko':'Spain',
+  'slovinsko':'Slovenia','jihoafrická republika':'South Africa','jar':'South Africa','španělsko':'Spain',
   'švýcarsko':'Switzerland','thajsko':'Thailand','tunisko':'Tunisia','turecko':'Türkiye',
   'turkiye':'Türkiye','ukraine':'Ukraine','ukrajina':'Ukraine','usa':'USA',
   'spojené státy':'USA','uruguay':'Uruguay','uzbekistán':'Uzbekistan','venezuela':'Venezuela',
