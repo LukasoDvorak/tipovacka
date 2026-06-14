@@ -369,6 +369,28 @@ async function main() {
     console.warn('⚠️ Přepočet bodů selhal:', e.message);
   }
 
+  // Doplň highlights pro všechny done zápasy bez URL (vždy, i mimo zápasový čas)
+  console.log('📺 Hledám chybějící highlights na ČT sport...');
+  const doneWithoutHighlight = await supabaseFetch(
+    '/rest/v1/matches?status=eq.done&highlight_url=is.null&select=id,home_team,away_team', 'GET'
+  );
+  if (doneWithoutHighlight && doneWithoutHighlight.length > 0) {
+    let hlFound = 0;
+    for (const match of doneWithoutHighlight) {
+      const cleanHome = match.home_team.replace(/^\S+\s/, '');
+      const cleanAway = match.away_team.replace(/^\S+\s/, '');
+      const hlUrl = await findHighlight(cleanHome, cleanAway);
+      if (hlUrl) {
+        await supabaseFetch(`/rest/v1/matches?id=eq.${match.id}`, 'PATCH', { highlight_url: hlUrl });
+        console.log(`   🎬 ${cleanHome} vs ${cleanAway} → ${hlUrl}`);
+        hlFound++;
+      }
+    }
+    console.log(`   📺 Highlights doplněno: ${hlFound}/${doneWithoutHighlight.length}`);
+  } else {
+    console.log('   ✅ Všechny zápasy mají highlight nebo ještě neskončily');
+  }
+
   console.log('✅ Sync dokončen');
 }
 
