@@ -188,31 +188,36 @@ function matchPlayerName(apiName, playersList) {
 let ctHighlightsCache = null;
 async function loadCtHighlights() {
   if (ctHighlightsCache) return ctHighlightsCache;
+  const videos = [];
   try {
-    const res = await fetchWithRetry(CT_SPORT_URL);
-    const html = await res.text();
-    // Najdi všechny linky na videa se slugem obsahujícím "sestrih" nebo "zaznam"
-    const re = /href="(\/video\/[^"]+)"/g;
-    const titleRe = /<h[23][^>]*>([^<]+)<\/h[23]>/g;
-    const videos = [];
-    let m;
-    // Extrahuj href + hledej nadpisy poblíž
-    const chunks = html.split(/href="\/video\//);
-    for (let i = 1; i < chunks.length; i++) {
-      const slug = chunks[i].split('"')[0];
-      const url = `https://sport.ceskatelevize.cz/video/${slug}`;
-      // Najdi název v okolním textu (do 500 znaků)
-      const nearby = chunks[i].substring(0, 500);
-      const titleMatch = nearby.match(/<(?:h[23]|p)[^>]*>([^<]{5,80})<\/(?:h[23]|p)>/);
-      const title = titleMatch ? titleMatch[1].trim() : slug.replace(/-\d+$/, '').replace(/-/g, ' ');
-      videos.push({ url, title: title.toLowerCase() });
+    // Projdi všechny stránky (max 10) dokud nenajdeme méně videí než očekáváme
+    for (let page = 1; page <= 10; page++) {
+      const url = page === 1 ? CT_SPORT_URL : `${CT_SPORT_URL}?page=${page}`;
+      const res = await fetchWithRetry(url);
+      const html = await res.text();
+      const before = videos.length;
+      const chunks = html.split(/href="\/video\//);
+      for (let i = 1; i < chunks.length; i++) {
+        const slug = chunks[i].split('"')[0];
+        // Zajímají nás jen sestřihy a záznamy utkání
+        if (!slug.includes('sestrih') && !slug.includes('zaznam')) continue;
+        const videoUrl = `https://sport.ceskatelevize.cz/video/${slug}`;
+        // Jméno z URL slugu (bez číselného ID na konci)
+        const title = slug.replace(/-\d+$/, '').replace(/-/g, ' ');
+        if (!videos.find(v => v.url === videoUrl)) {
+          videos.push({ url: videoUrl, title });
+        }
+      }
+      console.log(`   📺 ČT sport stránka ${page}: ${videos.length - before} nových videí`);
+      // Pokud stránka nepřidala žádná nová videa, jsme na konci
+      if (videos.length === before) break;
     }
     ctHighlightsCache = videos;
-    console.log(`   📺 ČT sport: nalezeno ${videos.length} videí`);
+    console.log(`   📺 ČT sport celkem: ${videos.length} sestřihů/záznamů`);
     return videos;
   } catch (e) {
     console.warn('   ⚠️ ČT sport scraping selhal:', e.message);
-    return [];
+    return videos;
   }
 }
 
