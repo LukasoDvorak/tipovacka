@@ -258,7 +258,13 @@ async function loadCtHighlights() {
     // Projdi všechny stránky (max 10) dokud nenajdeme méně videí než očekáváme
     for (let page = 1; page <= 10; page++) {
       const url = page === 1 ? CT_SPORT_URL : `${CT_SPORT_URL}?page=${page}`;
-      const res = await fetchWithRetry(url);
+      const res = await fetchWithRetry(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'cs,en;q=0.5',
+        }
+      });
       const html = await res.text();
       const before = videos.length;
       const chunks = html.split(/href="\/video\//);
