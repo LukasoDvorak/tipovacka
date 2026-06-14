@@ -153,17 +153,19 @@ async function main() {
   let found = 0, skipped = 0, notFound = 0;
 
   for (const match of matches) {
-    if (match.highlight_url) { skipped++; continue; }
+    // Přeskoč jen pokud už má sestřih (ne záznam)
+    if (match.highlight_url && match.highlight_url.includes('sestrih')) { skipped++; continue; }
 
     const cleanHome = match.home_team.replace(/^\S+\s/, '');
     const cleanAway = match.away_team.replace(/^\S+\s/, '');
     const normHomes = enToAllCzNorms(cleanHome);
     const normAways = enToAllCzNorms(cleanAway);
 
-    const hit = videos.find(v => {
+    const hits = videos.filter(v => {
       const t = normCz(v.title);
       return normHomes.some(h => t.includes(h)) && normAways.some(a => t.includes(a));
     });
+    const hit = hits.find(v => v.url.includes('sestrih')) || hits[0];
 
     if (hit) {
       await sbFetch(`/rest/v1/matches?id=eq.${match.id}`, 'PATCH', { highlight_url: hit.url });

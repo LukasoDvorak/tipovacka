@@ -304,12 +304,14 @@ async function findHighlight(homeTeam, awayTeam) {
     const videos = await loadCtHighlights();
     const normHome = enToCzNorm(homeTeam);
     const normAway = enToCzNorm(awayTeam);
-    // Hledej video jehož titulek nebo slug obsahuje obě jména
-    const hit = videos.find(v => {
+    const matches = videos.filter(v => {
       const t = normCz(v.title);
       return t.includes(normHome) && t.includes(normAway);
     });
-    return hit ? hit.url : null;
+    if (matches.length === 0) return null;
+    // Preferuj sestřih před záznamem
+    const sestrih = matches.find(v => v.url.includes('sestrih'));
+    return (sestrih || matches[0]).url;
   } catch (e) {
     console.warn('   ⚠️ findHighlight selhal:', e.message);
     return null;
