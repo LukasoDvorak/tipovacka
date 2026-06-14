@@ -2139,6 +2139,7 @@
         <div class="match-compare-header" style="cursor:pointer;user-select:none" onclick="toggleMatchCompare('mc-${m.id}', this)">
           <span class="match-compare-teams">${m.home} vs ${m.away}<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">${m.date} · ${m.time}</span></span>
           <span style="display:flex;align-items:center;gap:8px">
+            ${m.highlight_url ? `<a href="${m.highlight_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--accent);text-decoration:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap">▶ Sestřih</a>` : ''}
             <span class="match-compare-result" style="color:${resultColor};display:flex;align-items:center;gap:6px">
               ${resultStr}
               ${m.status === 'live' ? `<span style="font-size:10px;font-weight:700;color:var(--red);animation:pulse 1.5s infinite">LIVE</span>${m.liveMin ? `<span style="font-size:10px;color:var(--muted);font-weight:600">${m.liveMin}'</span>` : ''}` : ''}
