@@ -1904,22 +1904,15 @@
       if (!list) return;
       const el = list.querySelector(`[data-match-id="${next.id}"]`);
       if (!el) return;
-      // Změř vše co je nad listem (nav + stats + filter bar)
-      const listTop = list.getBoundingClientRect().top;
-      const containerTop = (scrollContainer === window ? 0 : scrollContainer.getBoundingClientRect().top);
-      const listOffsetFromContainer = listTop - containerTop;
-      const offset = listOffsetFromContainer + 8;
-      // Na desktopu scrolluje content panel, na mobilu window
       const scrollContainer = document.querySelector('#main-content') || window;
       const elTop = el.getBoundingClientRect().top;
       if (scrollContainer === window) {
-        const absTop = elTop + window.scrollY - offset;
-        window.scrollTo({ top: absTop, behavior: 'smooth' });
+        window.scrollTo({ top: elTop + window.scrollY - 70, behavior: 'smooth' });
       } else {
-        const containerTop = scrollContainer.getBoundingClientRect().top;
-        scrollContainer.scrollBy({ top: elTop - containerTop - offset, behavior: 'smooth' });
+        const cTop = scrollContainer.getBoundingClientRect().top;
+        scrollContainer.scrollBy({ top: elTop - cTop - 8, behavior: 'smooth' });
       }
-    }, 80);
+    }, 150);
   }
 
   function calcTipPoints(tip, result) {
