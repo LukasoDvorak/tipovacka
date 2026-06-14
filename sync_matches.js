@@ -265,7 +265,7 @@ async function loadCtHighlights() {
       for (let i = 1; i < chunks.length; i++) {
         const slug = chunks[i].split('"')[0];
         // Zajímají nás jen sestřihy a záznamy utkání
-        if (!slug.includes('sestrih') && !slug.includes('zaznam')) continue;
+        if (!slug.includes('sestrih')) continue;
         const videoUrl = `https://sport.ceskatelevize.cz/video/${slug}`;
         // Jméno z URL slugu (bez číselného ID na konci)
         const title = slug.replace(/-\d+$/, '').replace(/-/g, ' ');

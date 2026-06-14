@@ -113,7 +113,7 @@ async function loadCtHighlights() {
     const chunks = html.split(/href="\/video\//);
     for (let i = 1; i < chunks.length; i++) {
       const slug = chunks[i].split('"')[0];
-      if (!slug.includes('sestrih') && !slug.includes('zaznam-utkani')) continue;
+      if (!slug.includes('sestrih')) continue;
       const videoUrl = `https://sport.ceskatelevize.cz/video/${slug}`;
       const title = slug.replace(/-\d+$/, '').replace(/-/g, ' ');
       if (!videos.find(v => v.url === videoUrl)) {
@@ -153,7 +153,11 @@ async function main() {
   let found = 0, skipped = 0, notFound = 0;
 
   for (const match of matches) {
-    // Přeskoč jen pokud už má sestřih (ne záznam)
+    // Pokud má záznam (ne sestřih), smaž URL — čekáme na sestřih
+    if (match.highlight_url && match.highlight_url.includes('zaznam')) {
+      await sbFetch(`/rest/v1/matches?id=eq.${match.id}`, 'PATCH', { highlight_url: null });
+      console.log(`   🗑️  Smazán záznam: ${match.home_team} vs ${match.away_team}`);
+    }
     if (match.highlight_url && match.highlight_url.includes('sestrih')) { skipped++; continue; }
 
     const cleanHome = match.home_team.replace(/^\S+\s/, '');
