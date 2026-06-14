@@ -19,5 +19,20 @@ jobs:
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
-
         run: node sync_matches.js
+        continue-on-error: false
+        timeout-minutes: 5
+
+      - name: Retry při selhání (1. pokus)
+        if: failure()
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
+        run: sleep 30 && node sync_matches.js
+
+      - name: Retry při selhání (2. pokus)
+        if: failure()
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
+        run: sleep 60 && node sync_matches.js
