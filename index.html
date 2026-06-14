@@ -1891,6 +1891,23 @@
     });
     if (!filtered.length) { list.innerHTML = '<div class="empty">Žádné zápasy</div>'; return; }
     list.innerHTML = filtered.map(m => renderMatchCard(m)).join('');
+    scrollToNextMatch('matches-list');
+  }
+
+  function scrollToNextMatch(listId) {
+    const next = MATCHES.find(m => m.status === 'live')
+      || MATCHES.find(m => m.status === 'locked')
+      || MATCHES.find(m => m.status === 'open');
+    if (!next) return;
+    setTimeout(() => {
+      const list = document.getElementById(listId);
+      if (!list) return;
+      const el = list.querySelector(`[data-match-id="${next.id}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.scrollBy(0, -70);
+      }
+    }, 80);
   }
 
   function calcTipPoints(tip, result) {
@@ -2017,7 +2034,7 @@
       ? `<a href="${m.highlight_url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--accent);text-decoration:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap">▶ Sestřih</a>`
       : '';
 
-    return `<div class="match-card">
+    return `<div class="match-card" data-match-id="${m.id}">
       <div class="match-header"><span>${m.group} · ${m.date} · ${m.time}</span><div style="display:flex;align-items:center;gap:8px">${highlightBtn}${statusHtml}</div></div>
       <div class="match-body">
         <div class="team">
@@ -2135,7 +2152,7 @@
         ? `${m.result.h}:${m.result.a}`
         : (m.status === 'live' ? 'LIVE' : 'BRZY');
       const resultColor = m.status === 'done' ? 'var(--green)' : m.status === 'live' ? 'var(--yellow)' : 'var(--muted)';
-      return `<div class="match-compare">
+      return `<div class="match-compare" data-match-id="${m.id}">
         <div class="match-compare-header" style="cursor:pointer;user-select:none" onclick="toggleMatchCompare('mc-${m.id}', this)">
           <span class="match-compare-teams">${m.home} vs ${m.away}<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">${m.date} · ${m.time}</span></span>
           <span style="display:flex;align-items:center;gap:8px">
@@ -2155,6 +2172,7 @@
         </div>
       </div>`;
     }).join('');
+    scrollToNextMatch('others-list');
   }
 
   function toggleMatchCompare(id, header) {
