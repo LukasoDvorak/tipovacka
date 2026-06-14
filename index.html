@@ -1904,11 +1904,11 @@
       if (!list) return;
       const el = list.querySelector(`[data-match-id="${next.id}"]`);
       if (!el) return;
-      // Nav bar výška + filter bar výška
-      const NAV = document.querySelector('.nav-bar')?.offsetHeight || 58;
-      const FILTER = list.previousElementSibling?.classList.contains('filter-bar')
-        ? list.previousElementSibling.offsetHeight + 8 : 0;
-      const offset = NAV + FILTER + 8;
+      // Změř vše co je nad listem (nav + stats + filter bar)
+      const listTop = list.getBoundingClientRect().top;
+      const containerTop = (scrollContainer === window ? 0 : scrollContainer.getBoundingClientRect().top);
+      const listOffsetFromContainer = listTop - containerTop;
+      const offset = listOffsetFromContainer + 8;
       // Na desktopu scrolluje content panel, na mobilu window
       const scrollContainer = document.querySelector('#main-content') || window;
       const elTop = el.getBoundingClientRect().top;
