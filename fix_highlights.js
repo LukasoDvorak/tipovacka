@@ -77,7 +77,7 @@ const CZ_TO_EN = {
   'thajsko':'Thailand',
   'ukrajina':'Ukraine',
   'venezuela':'Venezuela',
-  'pobřeží slonoviny':"Côte d'Ivoire",'pob. slonoviny':"Côte d'Ivoire",'pob slonoviny':"Côte d'Ivoire",
+  'pobřeží slonoviny':'Ivory Coast','pob. slonoviny':'Ivory Coast','pob slonoviny':'Ivory Coast',
   's. arábie':'Saudi Arabia','saúd. arábie':'Saudi Arabia',
   'bosna a h.':'Bosnia-Herzegovina','bosna a h':'Bosnia-Herzegovina',
   'švédsko':'Sweden',
