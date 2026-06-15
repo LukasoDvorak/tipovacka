@@ -160,7 +160,7 @@ const TEAM_NAME_MAP = {
   'Democratic Republic of the Congo': 'Congo DR',
   'IR Iran': 'Iran',
   'Korea Republic': 'South Korea',
-  'Ivory Coast': "Côte d'Ivoire",
+  "Côte d'Ivoire": 'Ivory Coast',
 };
 
 function normalizeTeamName(name) {
