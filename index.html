@@ -1904,7 +1904,9 @@
       if (!list) return;
       const el = list.querySelector(`[data-match-id="${next.id}"]`);
       if (!el) return;
-      const scrollContainer = document.querySelector('#main-content') || window;
+      const mc = document.querySelector('#main-content');
+      const isScrollable = mc && getComputedStyle(mc).overflowY === 'auto';
+      const scrollContainer = isScrollable ? mc : window;
       const elTop = el.getBoundingClientRect().top;
       if (scrollContainer === window) {
         window.scrollTo({ top: elTop + window.scrollY - 70, behavior: 'smooth' });
