@@ -238,8 +238,8 @@ function matchPlayerName(apiName, playersList) {
   const byLastName = playersList.filter(p => normalize(p.player_name).split(' ').pop() === apiLastName);
   if (byLastName.length === 1) return byLastName[0].player_name;
 
-  // 3. Shoda příjmení + iniciála (např. "R. Jiménez" → příjmení "jimenez", iniciála "r")
-  const apiInitial = normApi.split('.')[0]?.trim();
+  // 3. Shoda příjmení + iniciála (např. "R. Jiménez" → iniciála "r"; nebo první písmeno jména)
+  const apiInitial = normApi.includes('.') ? normApi.split('.')[0]?.trim() : normApi.charAt(0);
   if (apiInitial && byLastName.length > 1) {
     const byInitial = byLastName.find(p => normalize(p.player_name).charAt(0) === apiInitial);
     if (byInitial) return byInitial.player_name;
