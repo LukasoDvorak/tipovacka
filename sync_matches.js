@@ -305,9 +305,8 @@ function enToCzNorm(enName) {
   return normCz(enName);
 }
 
-async function findHighlight(homeTeam, awayTeam) {
+function findHighlight(homeTeam, awayTeam, videos) {
   try {
-    const videos = await loadCtHighlights();
     const normHome = enToCzNorm(homeTeam);
     const normAway = enToCzNorm(awayTeam);
     const matches = videos.filter(v => {
@@ -354,6 +353,9 @@ async function main() {
     console.log('💤 Žádné aktivní zápasy, sync přeskočen');
     return;
   }
+
+  // Načti ČT videa jednou pro celý sync
+  const ctVideos = await loadCtHighlights();
 
   let updated = 0;
   let goalsTotal = 0;
@@ -413,11 +415,11 @@ async function main() {
         }
 
         // Hledej highlight video pokud ještě nemáme URL
-        if (!dbMatch.highlight_url) {
+        if (!dbMatch.highlight_url && ctVideos) {
           // Odstraň emoji vlajku ze začátku jména
           const cleanHome = homeTeam.name.replace(/^\S+\s/, '');
           const cleanAway = awayTeam.name.replace(/^\S+\s/, '');
-          const highlightUrl = await findHighlight(cleanHome, cleanAway);
+          const highlightUrl = findHighlight(cleanHome, cleanAway, ctVideos);
           if (highlightUrl) {
             await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { highlight_url: highlightUrl });
             console.log(`   🎬 Highlight nalezen: ${highlightUrl}`);
@@ -452,7 +454,7 @@ async function main() {
     for (const match of doneWithoutHighlight) {
       const cleanHome = match.home_team.replace(/^\S+\s/, '');
       const cleanAway = match.away_team.replace(/^\S+\s/, '');
-      const hlUrl = await findHighlight(cleanHome, cleanAway);
+      const hlUrl = findHighlight(cleanHome, cleanAway, ctVideos);
       if (hlUrl) {
         await supabaseFetch(`/rest/v1/matches?id=eq.${match.id}`, 'PATCH', { highlight_url: hlUrl });
         console.log(`   🎬 ${cleanHome} vs ${cleanAway} → ${hlUrl}`);
