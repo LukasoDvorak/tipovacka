@@ -140,10 +140,10 @@ function parseScorers(scorersStr, teamName) {
     // Rozdělení: položky jsou mezi | a |
     const parts = stripped.split('|').map(s => s.replace(/^,/, '').trim()).filter(s => s && s !== ',');
     return parts.map(clean => {
-      // Parsuj “Jméno Příjmení 67'” nebo “Jméno Příjmení 67' (pen.)”
-      const minuteMatch = clean.match(/(\d+)['′]/);
+      // Parsuj “Jméno Příjmení 67'” nebo “Jméno Příjmení 45+3' (pen.)”
+      const minuteMatch = clean.match(/(\d+)(?:\+\d+)?['′]/);
       const minute = minuteMatch ? parseInt(minuteMatch[1]) : null;
-      const player_name = clean.replace(/\s*\d+['′].*$/, '').trim();
+      const player_name = clean.replace(/\s*\d+(?:\+\d+)?['′].*$/, '').trim();
       return { player_name, team: teamName, minute };
     }).filter(g => g.player_name);
   } catch (e) {
