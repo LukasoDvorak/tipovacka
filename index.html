@@ -1098,7 +1098,7 @@
   let currentProfile = null;
 
   // ── State ──
-  const QUOTA_MAX = 24;
+  const QUOTA_MAX = 25;
   const QUOTA_PLAYOFF = 8;
   let quotaUsed = 0;
   let quotaPlayoffUsed = 0;
@@ -1445,13 +1445,18 @@
     const { data } = await sb.from('leaderboard').select('*').limit(20);
     if (data) {
       LEADERBOARD.length = 0;
-      // Načti počty žetonů (scorer_tips per user)
+      // Načti počty žetonů zvlášť pro základní část a playoff
+      const playoffMatchIds = new Set(MATCHES.filter(m => isPlayoffPhase(m.phase)).map(m => m.id));
       const { data: tokens } = await sb.from('scorer_tips')
-        .select('user_id')
+        .select('user_id,match_id')
         .in('user_id', data.map(p => p.id));
-      const tokenMap = {};
+      const groupTokenMap = {}, playoffTokenMap = {};
       if (tokens) tokens.forEach(t => {
-        tokenMap[t.user_id] = (tokenMap[t.user_id] || 0) + 1;
+        if (playoffMatchIds.has(String(t.match_id))) {
+          playoffTokenMap[t.user_id] = (playoffTokenMap[t.user_id] || 0) + 1;
+        } else {
+          groupTokenMap[t.user_id] = (groupTokenMap[t.user_id] || 0) + 1;
+        }
       });
 
       data.forEach(p => LEADERBOARD.push({
@@ -1460,7 +1465,8 @@
         tips: p.tips_count,
         isMe: currentUser && p.id === currentUser.id,
         hasPaid: p.has_paid,
-        scorerTokens: tokenMap[p.id] || 0,
+        scorerTokens: groupTokenMap[p.id] || 0,
+        scorerPlayoffTokens: playoffTokenMap[p.id] || 0,
       }));
       renderLiveLeaderboard();
       renderPrizePool();
@@ -1560,9 +1566,12 @@
     const el = document.getElementById('leaderboard-rows');
     if (!el) return;
     el.innerHTML = LEADERBOARD.map((p, i) => {
-      const tokensUsed = p.scorerTokens ?? Math.floor(Math.random() * 20); // demo
+      const tokensUsed = p.scorerTokens || 0;
       const tokensLeft = QUOTA_MAX - tokensUsed;
       const tokenColor = tokensLeft === 0 ? 'var(--red)' : tokensLeft <= 6 ? 'var(--yellow)' : 'var(--muted)';
+      const poUsed = p.scorerPlayoffTokens || 0;
+      const poLeft = QUOTA_PLAYOFF - poUsed;
+      const poColor = poLeft === 0 ? 'var(--red)' : poLeft <= 2 ? 'var(--yellow)' : 'var(--muted)';
       return `
         <div class="lb-row ${p.isMe ? 'me' : ''}">
           <div class="lb-rank ${i===0?'gold':i===1?'silver':i===2?'bronze':''}">${['🥇','🥈','🥉'][i] || i+1}</div>
@@ -1576,6 +1585,7 @@
             <div class="lb-detail" style="display:flex;align-items:center;gap:8px">
               <span>${p.tips || 0} tipů</span>
               <span style="color:${tokenColor};font-size:11px">⚽ ${tokensLeft}/${QUOTA_MAX}</span>
+              <span style="color:${poColor};font-size:11px">🏆 ${poLeft}/${QUOTA_PLAYOFF}</span>
             </div>
           </div>
           <div style="text-align:right">
