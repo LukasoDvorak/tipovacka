@@ -231,8 +231,23 @@ function normalize(str) {
   return str.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
+// Slovník garblovaných jmen z API (samohlásky odstraněny/nahrazeny)
+const GARBLED_NAMES = {
+  'hri kin': 'Harry Kane',
+  'jvd blingham': 'Jude Bellingham',
+  'nvnv mndz': 'Nuno Mendes',
+  'aldvr shvmvrvdvf': 'Eldor Shomurodov',
+  'markvs hlmgrn pdrsn': 'Markus Holmgren Pedersen',
+  'dnil mvnvz': 'Daniel Muñoz',
+  'j. mcginn': 'John McGinn',
+};
+
 function matchPlayerName(apiName, playersList) {
   if (!playersList || playersList.length === 0) return apiName;
+
+  // 0. Kontrola slovníku garblovaných jmen
+  const garbled = GARBLED_NAMES[normalize(apiName)];
+  if (garbled) return garbled;
 
   const normApi = normalize(apiName);
 
