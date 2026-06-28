@@ -998,6 +998,34 @@
         </div>
       </div>
     </div>
+
+    <div class="rules-section">
+      <h3>⚖️ Rozhodování remíz</h3>
+      <div class="rule-row">
+        <div style="display:flex;align-items:center;gap:10px;width:100%">
+          <div style="font-size:18px;font-weight:800;color:var(--muted);min-width:24px">1.</div>
+          <div><div class="rule-desc">Více přesných výsledků</div><div class="rule-note">Počet tipů se správným přesným skóre</div></div>
+        </div>
+      </div>
+      <div class="rule-row">
+        <div style="display:flex;align-items:center;gap:10px;width:100%">
+          <div style="font-size:18px;font-weight:800;color:var(--muted);min-width:24px">2.</div>
+          <div><div class="rule-desc">Více bodů ze střelců</div><div class="rule-note">Celkový součet bodů za tipované goalscorery</div></div>
+        </div>
+      </div>
+      <div class="rule-row">
+        <div style="display:flex;align-items:center;gap:10px;width:100%">
+          <div style="font-size:18px;font-weight:800;color:var(--muted);min-width:24px">3.</div>
+          <div><div class="rule-desc">Více bodů z předturnajových tipů</div><div class="rule-note">Vítěz, finalista, střelec, nejvíce gólů</div></div>
+        </div>
+      </div>
+      <div class="rule-row">
+        <div style="display:flex;align-items:center;gap:10px;width:100%">
+          <div style="font-size:18px;font-weight:800;color:var(--muted);min-width:24px">4.</div>
+          <div><div class="rule-desc">Dřívější registrace</div><div class="rule-note">Kdo se přihlásil jako první</div></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- MS INFO -->
@@ -1459,10 +1487,29 @@
         }
       });
 
+      // Načti body ze střelců a pre-tips pro každého hráče
+      const { data: scorerPtsData } = await sb.from('scorer_tips')
+        .select('user_id,points')
+        .in('user_id', data.map(p => p.id));
+      const scorerPtsMap = {};
+      if (scorerPtsData) scorerPtsData.forEach(s => {
+        scorerPtsMap[s.user_id] = (scorerPtsMap[s.user_id] || 0) + (s.points || 0);
+      });
+      const { data: preTipsData } = await sb.from('pre_tips')
+        .select('user_id,winner_points,finalist_points,scorer_points,goals_team_points,cards_points')
+        .in('user_id', data.map(p => p.id));
+      const prePtsMap = {};
+      if (preTipsData) preTipsData.forEach(pt => {
+        prePtsMap[pt.user_id] = (pt.winner_points||0)+(pt.finalist_points||0)+(pt.scorer_points||0)+(pt.goals_team_points||0)+(pt.cards_points||0);
+      });
+
       data.forEach(p => LEADERBOARD.push({
         name: p.display_name,
         pts: p.total_points,
         tips: p.tips_count,
+        exactScores: p.exact_scores || 0,
+        scorerPts: scorerPtsMap[p.id] || 0,
+        prePts: prePtsMap[p.id] || 0,
         isMe: currentUser && p.id === currentUser.id,
         hasPaid: p.has_paid,
         scorerTokens: groupTokenMap[p.id] || 0,
@@ -1584,8 +1631,13 @@
             </div>
             <div class="lb-detail" style="display:flex;align-items:center;gap:8px">
               <span>${p.tips || 0} tipů</span>
-              <span style="color:${tokenColor};font-size:11px">⚽ ${tokensLeft}/${QUOTA_MAX}</span>
-              <span style="color:${poColor};font-size:11px">🏆 ${poLeft}/${QUOTA_PLAYOFF}</span>
+              <span style="color:var(--muted);font-size:11px">🎯 ${p.exactScores || 0}×</span>
+              <span style="color:var(--muted);font-size:11px">⚽ ${p.scorerPts || 0} b</span>
+              <span style="color:var(--muted);font-size:11px">🏆 ${p.prePts || 0} b</span>
+            </div>
+            <div class="lb-detail" style="display:flex;align-items:center;gap:8px;margin-top:1px">
+              <span style="color:${tokenColor};font-size:11px">žetony: ${tokensLeft}/${QUOTA_MAX}</span>
+              <span style="color:${poColor};font-size:11px">PO: ${poLeft}/${QUOTA_PLAYOFF}</span>
             </div>
           </div>
           <div style="text-align:right">
