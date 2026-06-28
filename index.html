@@ -1927,7 +1927,7 @@
 
   function calcTipPoints(tip, result, phase) {
     if (!tip || !result) return null;
-    if (tip.h === result.h && tip.a === result.a) return isPlayoffPhase(phase) ? 10 : 5;
+    if (tip.h === result.h && tip.a === result.a) return isPlayoffPhase(phase) ? 7 : 5;
     const tipOut = tip.h > tip.a ? 'H' : tip.h === tip.a ? 'D' : 'A';
     const resOut = result.h > result.a ? 'H' : result.h === result.a ? 'D' : 'A';
     return tipOut === resOut ? 2 : 0;
