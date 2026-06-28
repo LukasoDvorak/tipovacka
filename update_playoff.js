@@ -24,10 +24,10 @@ const FIFA_FLAGS = {
   'CRO':'🇭🇷','SRB':'🇷🇸','SUI':'🇨🇭','DEN':'🇩🇰','POL':'🇵🇱','SVK':'🇸🇰','SVN':'🇸🇮','AUT':'🇦🇹',
   'NOR':'🇳🇴','SWE':'🇸🇪','SCO':'🏴󠁧󠁢󠁳󠁣󠁴󠁿','GRE':'🇬🇷','ROM':'🇷🇴','HUN':'🇭🇺','BIH':'🇧🇦','UKR':'🇺🇦',
   'TUR':'🇹🇷','MOR':'🇲🇦','SEN':'🇸🇳','NGA':'🇳🇬','EGY':'🇪🇬','ALG':'🇩🇿','TUN':'🇹🇳','GHA':'🇬🇭',
-  'CIV':'🇨🇮','CMR':'🇨🇲','MLI':'🇲🇱','ANG':'🇦🇴','ZAF':'🇿🇦','COD':'🇨🇩','CPV':'🇨🇻',
+  'CIV':'🇨🇮','CMR':'🇨🇲','MLI':'🇲🇱','ANG':'🇦🇴','ZAF':'🇿🇦','RSA':'🇿🇦','COD':'🇨🇩','CPV':'🇨🇻',
   'JPN':'🇯🇵','KOR':'🇰🇷','AUS':'🇦🇺','IRN':'🇮🇷','KSA':'🇸🇦','JOR':'🇯🇴','IRQ':'🇮🇶',
   'UZB':'🇺🇿','IND':'🇮🇳','IDN':'🇮🇩','PHI':'🇵🇭','THA':'🇹🇭','CHN':'🇨🇳','NZL':'🇳🇿',
-  'CUR':'🇨🇼','SCO':'🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'CUR':'🇨🇼','CUW':'🇨🇼','MAR':'🇲🇦','CZE':'🇨🇿','QAT':'🇶🇦',
 };
 
 async function sbFetch(path, method, body) {
