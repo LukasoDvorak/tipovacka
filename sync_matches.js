@@ -178,12 +178,19 @@ function matchPhase(type) {
   if (!type) return 'group';
   const t = type.toLowerCase();
   if (t === 'group') return 'group';
-  if (t.includes('16') || t === 'round_of_16') return 'r16';
+  if (t === 'r32') return 'r32';
+  if (t === 'r16' || t.includes('16') || t === 'round_of_16') return 'r16';
   if (t.includes('quarter')) return 'qf';
   if (t.includes('semi')) return 'sf';
+  if (t === 'third') return 'third';
   if (t.includes('final') && !t.includes('semi')) return 'final';
   return 'group';
 }
+
+const GROUP_NAME_MAP = {
+  group: null, r32: 'LAST_32', r16: 'LAST_16',
+  qf: 'QUARTER_FINALS', sf: 'SEMI_FINALS', third: 'THIRD_PLACE', final: 'FINAL',
+};
 
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 2000) {
   for (let i = 0; i < retries; i++) {
@@ -378,11 +385,38 @@ async function main() {
     // Upsert zápas — použij worldcup26 id jako match_id (prefixované aby nekolidovalo)
     const matchId = `wc26_${g.id}`;
 
-    // Najdi zápas v Supabase podle home+away týmu
-    const existing = await supabaseFetch(
-      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&away_team=ilike.*${encodeURIComponent(awayTeam.name)}*&select=id,status,home_score,highlight_url`,
+    const phase = matchPhase(g.type);
+    const groupName = GROUP_NAME_MAP[phase];
+
+    // Najdi zápas v Supabase — nejdřív podle jmen, pak podle kickoff_at pro playoff TBD
+    let existing = await supabaseFetch(
+      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&away_team=ilike.*${encodeURIComponent(awayTeam.name)}*&select=id,status,home_score,highlight_url,home_team`,
       'GET'
     );
+    // Fallback pro playoff: najdi podle group_name + kickoff_at (pro TBD zápasy)
+    if ((!existing || existing.length === 0) && groupName) {
+      const apiKickoff = new Date(g.local_date.replace(/(\d+)\/(\d+)\/(\d+) (.+)/, '$3-$1-$2T$4:00Z'));
+      const byGroup = await supabaseFetch(
+        `/rest/v1/matches?group_name=eq.${groupName}&select=id,status,home_score,highlight_url,home_team,kickoff_at`,
+        'GET'
+      );
+      if (byGroup && byGroup.length > 0) {
+        const closest = byGroup.sort((a, b) =>
+          Math.abs(new Date(a.kickoff_at) - apiKickoff) - Math.abs(new Date(b.kickoff_at) - apiKickoff)
+        )[0];
+        if (Math.abs(new Date(closest.kickoff_at) - apiKickoff) < 8 * 3600 * 1000) {
+          existing = [closest];
+          // Doplň jména týmů pokud jsou TBD
+          if (closest.home_team?.includes('null') && homeTeam.name) {
+            await supabaseFetch(`/rest/v1/matches?id=eq.${closest.id}`, 'PATCH', {
+              home_team: `${homeFlag} ${homeTeam.name}`, home_flag: homeFlag,
+              away_team: `${awayFlag} ${awayTeam.name}`, away_flag: awayFlag,
+              phase, group_name: groupName,
+            });
+          }
+        }
+      }
+    }
 
     if (existing && existing.length > 0) {
       const dbMatch = existing[0];

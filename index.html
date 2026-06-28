@@ -859,14 +859,14 @@
     </div>
 
     <div class="filter-bar">
-      <div class="pill active" onclick="filterMatches('vse',this)">Vše</div>
+      <div class="pill" onclick="filterMatches('vse',this)">Vše</div>
       <div class="pill" onclick="filterMatches('live',this)">Live</div>
       <div class="pill" onclick="filterMatches('brzy',this)">Brzy</div>
       <div class="pill" onclick="filterMatches('vyplnene',this)">Vyplněné</div>
       <div class="pill" onclick="filterMatches('neodehrane',this)">Neodehrané</div>
       <div class="pill" onclick="filterMatches('odehrane',this)">Odehrané</div>
       <div class="pill" onclick="filterMatches('skupina',this)">Základní část</div>
-      <div class="pill" onclick="filterMatches('playoff',this)">Play off</div>
+      <div class="pill active" onclick="filterMatches('playoff',this)">Play off</div>
     </div>
 
     <div id="matches-list"></div>
@@ -1100,10 +1100,12 @@
 
   // ── State ──
   const QUOTA_MAX = 24;
-  let quotaUsed = 6;
+  const QUOTA_PLAYOFF = 8;
+  let quotaUsed = 0;
+  let quotaPlayoffUsed = 0;
   let currentMatchId = null;
   let modalSelected = new Set();
-  let currentFilter = 'vse';
+  let currentFilter = 'playoff';
   let currentOthersFilter = 'vse';
 
   // ── Match data (načítá se z DB) ──
@@ -1124,6 +1126,7 @@
     return {
       id: String(m.id),
       group: m.group_name || '',
+      phase: m.phase || 'group',
       date, time,
       home: m.home_team,
       away: m.away_team,
@@ -1309,7 +1312,7 @@
     app.style.display = window.innerWidth >= 900 ? 'grid' : 'block';
     app.classList.add('app-visible');
 
-    renderMatches('vse');
+    renderMatches('playoff');
     renderOthers('vse');
     renderPrizePool();
     renderPreTournament();
@@ -1339,7 +1342,9 @@
         const m = MATCHES.find(x => x.id === mid);
         if (m) { m.myScorers = names; savedScorers[mid] = new Set(names); }
       });
-      quotaUsed = scorerTips.length;
+      const playoffMatchIds = new Set(MATCHES.filter(m => isPlayoffPhase(m.phase)).map(m => m.id));
+      quotaUsed = scorerTips.filter(s => !playoffMatchIds.has(String(s.match_id))).length;
+      quotaPlayoffUsed = scorerTips.filter(s => playoffMatchIds.has(String(s.match_id))).length;
     }
     if (preTip) {
       MY_PRE.winner = preTip.winner_team || '';
@@ -1372,7 +1377,7 @@
     MATCHES.forEach(m => {
       if (!m.myTip || !m.result) return;
       tipsCount++;
-      const pts = calcTipPoints(m.myTip, m.result);
+      const pts = calcTipPoints(m.myTip, m.result, m.phase);
       const scorerPts = (m.myScorers || []).filter(s => (m.goalScorers || []).includes(s)).length * 3;
       totalPts += pts + scorerPts;
       if (pts === 5) exact++;
@@ -1916,9 +1921,13 @@
     }, 150);
   }
 
-  function calcTipPoints(tip, result) {
+  function isPlayoffPhase(phase) {
+    return phase && phase !== 'group';
+  }
+
+  function calcTipPoints(tip, result, phase) {
     if (!tip || !result) return null;
-    if (tip.h === result.h && tip.a === result.a) return 5;
+    if (tip.h === result.h && tip.a === result.a) return isPlayoffPhase(phase) ? 10 : 5;
     const tipOut = tip.h > tip.a ? 'H' : tip.h === tip.a ? 'D' : 'A';
     const resOut = result.h > result.a ? 'H' : result.h === result.a ? 'D' : 'A';
     return tipOut === resOut ? 2 : 0;
@@ -1963,7 +1972,7 @@
       </div>`;
     } else if (m.status !== 'open') {
       const isDone = m.status === 'done';
-      const tipPts = calcTipPoints(m.myTip, m.result);
+      const tipPts = calcTipPoints(m.myTip, m.result, m.phase);
       const scorerPts = (m.myScorers || []).filter(s => (m.goalScorers || []).includes(s)).length * 3;
       const totalPts = tipPts !== null ? tipPts + scorerPts : null;
       const dotClass = tipPts === null ? 'partial' : tipPts >= 5 ? 'correct' : tipPts >= 2 ? 'partial' : 'wrong';
@@ -2113,7 +2122,7 @@
         if (!p.tip) return `<div class="compare-row"><span class="compare-name">${p.name}${p.isMe ? ' 👤' : ''}</span><span class="compare-winner">—</span><span class="compare-score" style="color:var(--muted)">—</span><span class="compare-scorer">—</span><span class="compare-pts zero">0 b</span></div>`;
         const hasResult = !!m.result;
         const isLive = m.status === 'live';
-        const tipPts = hasResult ? calcTipPoints(p.tip, m.result) : null;
+        const tipPts = hasResult ? calcTipPoints(p.tip, m.result, m.phase) : null;
         const scorerNames = p.isMe ? (m.myScorers || []) : (p.scorers && p.scorers !== '—' ? p.scorers.split(', ') : []);
         const scorerPts = hasResult ? scorerNames.filter(s => (m.goalScorers || []).includes(s)).length * 3 : 0;
         const pts = tipPts !== null ? tipPts + scorerPts : null;
@@ -2191,15 +2200,26 @@
   }
 
   // ── Quota ──
+  function currentMatchIsPlayoff() {
+    if (!currentMatchId) return false;
+    const m = MATCHES.find(x => x.id === currentMatchId);
+    return m ? isPlayoffPhase(m.phase) : false;
+  }
+  function getActiveQuota() {
+    return currentMatchIsPlayoff()
+      ? { used: quotaPlayoffUsed, max: QUOTA_PLAYOFF }
+      : { used: quotaUsed, max: QUOTA_MAX };
+  }
   function updateQuotaUI() {
-    const remaining = QUOTA_MAX - quotaUsed;
-    const pct = (quotaUsed / QUOTA_MAX) * 100;
+    const groupRem = QUOTA_MAX - quotaUsed;
+    const playoffRem = QUOTA_PLAYOFF - quotaPlayoffUsed;
     const el = document.getElementById('quota-display');
     const fill = document.getElementById('quota-fill');
-    if (el) { el.textContent = remaining + ' / ' + QUOTA_MAX; el.className = 'quota-val ' + (remaining === 0 ? 'empty-q' : remaining <= 6 ? 'low' : 'ok'); }
-    if (fill) { fill.style.width = pct + '%'; fill.style.background = remaining === 0 ? 'var(--red)' : remaining <= 6 ? 'var(--yellow)' : 'var(--green)'; }
+    const pct = (quotaUsed / QUOTA_MAX) * 100;
+    if (el) { el.textContent = groupRem + ' / ' + QUOTA_MAX; el.className = 'quota-val ' + (groupRem === 0 ? 'empty-q' : groupRem <= 6 ? 'low' : 'ok'); }
+    if (fill) { fill.style.width = pct + '%'; fill.style.background = groupRem === 0 ? 'var(--red)' : groupRem <= 6 ? 'var(--yellow)' : 'var(--green)'; }
     const tokEl = document.getElementById('stat-tokens');
-    if (tokEl) { tokEl.textContent = remaining + '/' + QUOTA_MAX; tokEl.style.color = remaining === 0 ? 'var(--red)' : remaining <= 4 ? 'var(--yellow)' : 'var(--accent)'; }
+    if (tokEl) { tokEl.textContent = playoffRem + '/' + QUOTA_PLAYOFF + ' PO'; tokEl.style.color = playoffRem === 0 ? 'var(--red)' : playoffRem <= 2 ? 'var(--yellow)' : 'var(--accent)'; }
   }
 
   // ── Scorer Modal ──
@@ -2245,6 +2265,8 @@
     const teamName = teamSide === 'home' ? squad.team1.name : teamSide === 'away' ? squad.team2.name : squad.match;
 
     document.getElementById('modal-title').textContent = teamName;
+    const { max } = getActiveQuota();
+    document.getElementById('modal-sub').innerHTML = `Max 2 střelci celkem · zbývá <span id="modal-quota">6</span> žetonů${currentMatchIsPlayoff() ? ' (playoff: ' + QUOTA_PLAYOFF + ' celkem)' : ''}`;
     updateModalQuota();
 
     // Team 1
@@ -2285,7 +2307,8 @@
       el.querySelector('.player-check').textContent = '';
     } else {
       if (modalSelected.size >= 2) { showToast('Max 2 střelci na zápas', false); return; }
-      const remaining = QUOTA_MAX - quotaUsed - (modalSelected.size - (savedScorers[currentMatchId]?.size || 0));
+      const { used, max } = getActiveQuota();
+      const remaining = max - used - (modalSelected.size - (savedScorers[currentMatchId]?.size || 0));
       if (remaining <= 0) { showToast('Došly střelecké žetony!', false); return; }
       modalSelected.add(name);
       el.classList.add('selected');
@@ -2297,14 +2320,16 @@
   function updateModalQuota() {
     const prevCount = savedScorers[currentMatchId]?.size || 0;
     const diff = modalSelected.size - prevCount;
-    const remaining = QUOTA_MAX - quotaUsed - diff;
+    const { used, max } = getActiveQuota();
+    const remaining = max - used - diff;
     document.getElementById('modal-quota').textContent = Math.max(0, remaining);
   }
 
   function confirmScorers() {
     const prev = savedScorers[currentMatchId] || new Set();
     const diff = modalSelected.size - prev.size;
-    quotaUsed = Math.max(0, quotaUsed + diff);
+    if (currentMatchIsPlayoff()) quotaPlayoffUsed = Math.max(0, quotaPlayoffUsed + diff);
+    else quotaUsed = Math.max(0, quotaUsed + diff);
     savedScorers[currentMatchId] = new Set(modalSelected);
     updateQuotaUI();
     updateScorerDisplay(currentMatchId);
@@ -2326,7 +2351,9 @@
 
   function removeScorerFromChip(matchId, name) {
     savedScorers[matchId].delete(name);
-    quotaUsed = Math.max(0, quotaUsed - 1);
+    const m = MATCHES.find(x => x.id === matchId);
+    if (m && isPlayoffPhase(m.phase)) quotaPlayoffUsed = Math.max(0, quotaPlayoffUsed - 1);
+    else quotaUsed = Math.max(0, quotaUsed - 1);
     updateQuotaUI();
     updateScorerDisplay(matchId);
   }
@@ -2812,7 +2839,7 @@
     ];
     document.getElementById('tdm-rows').innerHTML = all.map(p => {
       if (!p.tip) return `<div class="tdm-row ${p.isMe?'me':''}"><span class="tdm-name">${p.name}${p.isMe?' 👤':''}</span><span class="tdm-score" style="color:var(--muted)">—</span><span class="tdm-scorer">bez tipu</span><span class="tdm-pts z">0 b</span></div>`;
-      const tipPts2 = m.result ? calcTipPoints(p.tip, m.result) : null;
+      const tipPts2 = m.result ? calcTipPoints(p.tip, m.result, m.phase) : null;
       const correct = tipPts2 === 5;
       const partial = tipPts2 === 2;
       const pts = correct ? 5 : partial ? 2 : 0;
