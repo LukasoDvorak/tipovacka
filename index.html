@@ -1407,26 +1407,14 @@
     const banner = document.getElementById('pre-tips-banner');
     if (banner && !PRE_LOCKED && !PRE_SAVED) banner.style.display = 'flex';
     else if (banner) banner.style.display = 'none';
-    // Počítej body dynamicky z MATCHES
-    let totalPts = 0, exact = 0, tipsCount = 0;
-    MATCHES.forEach(m => {
-      if (!m.myTip || !m.result) return;
-      tipsCount++;
-      const pts = calcTipPoints(m.myTip, m.result, m.phase);
-      const scorerPts = (m.myScorers || []).filter(s => (m.goalScorers || []).includes(s)).length * 3;
-      totalPts += pts + scorerPts;
-      if (pts === 5) exact++;
-    });
-    // Přičti předturnajové body
-    const prePts = (MY_PRE.winnerPts || 0) + (MY_PRE.finalistPts || 0) + (MY_PRE.scorerPts || 0) + (MY_PRE.mostGoalsPts || 0);
-    totalPts += prePts;
-    document.getElementById('stat-pts').textContent = totalPts;
-    document.getElementById('stat-tips').textContent = `${exact}/${tipsCount}`;
-    // Pořadí z leaderboard view
-    const { data } = await sb.from('leaderboard').select('id');
+    // Stejný zdroj jako tabulka — leaderboard view z DB (žádný lokální přepočet)
+    const { data } = await sb.from('leaderboard').select('id,total_points,tips_count,exact_scores').order('total_points', { ascending: false });
     if (data) {
-      const rank = data.findIndex(p => p.id === currentUser.id) + 1;
-      document.getElementById('stat-rank').textContent = rank > 0 ? `#${rank}` : '#—';
+      const rank = data.findIndex(p => p.id === currentUser.id);
+      const me = rank >= 0 ? data[rank] : null;
+      document.getElementById('stat-pts').textContent = me ? me.total_points : 0;
+      document.getElementById('stat-tips').textContent = me ? `${me.exact_scores}/${me.tips_count}` : '0/0';
+      document.getElementById('stat-rank').textContent = rank >= 0 ? `#${rank + 1}` : '#—';
     }
   }
 
