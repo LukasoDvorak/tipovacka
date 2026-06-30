@@ -345,6 +345,57 @@ function findHighlight(homeTeam, awayTeam, videos) {
   }
 }
 
+// Doplní tým do navazujícího playoff zápasu na základě výsledku zdrojového zápasu
+// (home_source_id/away_source_id + home_source_type/away_source_type = 'winner'/'loser')
+async function propagateBracketWinners() {
+  const pending = await supabaseFetch(
+    `/rest/v1/matches?or=(home_source_id.not.is.null,away_source_id.not.is.null)&select=id,home_team,away_team,home_flag,away_flag,home_source_id,away_source_id,home_source_type,away_source_type`,
+    'GET'
+  );
+  if (!pending || pending.length === 0) return;
+
+  let propagated = 0;
+  for (const m of pending) {
+    const patch = {};
+    if (m.home_source_id && (!m.home_team || m.home_team.includes('TBD') || m.home_team.includes('null'))) {
+      const resolved = await resolveSourceTeam(m.home_source_id, m.home_source_type || 'winner');
+      if (resolved) { patch.home_team = `${resolved.flag} ${resolved.name}`; patch.home_flag = resolved.flag; }
+    }
+    if (m.away_source_id && (!m.away_team || m.away_team.includes('TBD') || m.away_team.includes('null'))) {
+      const resolved = await resolveSourceTeam(m.away_source_id, m.away_source_type || 'winner');
+      if (resolved) { patch.away_team = `${resolved.flag} ${resolved.name}`; patch.away_flag = resolved.flag; }
+    }
+    if (Object.keys(patch).length > 0) {
+      await supabaseFetch(`/rest/v1/matches?id=eq.${m.id}`, 'PATCH', patch);
+      console.log(`   🏆 Bracket: doplněno ${JSON.stringify(patch)} → match ${m.id}`);
+      propagated++;
+    }
+  }
+  if (propagated > 0) console.log(`✅ Propagováno ${propagated} bracket týmů`);
+}
+
+async function resolveSourceTeam(sourceId, type) {
+  const src = await supabaseFetch(
+    `/rest/v1/matches?id=eq.${sourceId}&select=status,home_team,away_team,home_flag,away_flag,home_score,away_score,penalty_home_score,penalty_away_score`,
+    'GET'
+  );
+  if (!src || src.length === 0 || src[0].status !== 'done') return null;
+  const s = src[0];
+  if (s.home_score == null || s.away_score == null) return null;
+  let homeWins;
+  if (s.home_score !== s.away_score) {
+    homeWins = s.home_score > s.away_score;
+  } else if (s.penalty_home_score != null && s.penalty_away_score != null) {
+    homeWins = s.penalty_home_score > s.penalty_away_score;
+  } else {
+    return null; // remíza bez penalt — výsledek zatím neznámý
+  }
+  const winnerIsHome = type === 'winner' ? homeWins : !homeWins;
+  return winnerIsHome
+    ? { name: (s.home_team || '').replace(/^\S+\s/, ''), flag: s.home_flag }
+    : { name: (s.away_team || '').replace(/^\S+\s/, ''), flag: s.away_flag };
+}
+
 async function main() {
   console.log(`🔄 Sync spuštěn: ${new Date().toISOString()}`);
 
@@ -435,11 +486,17 @@ async function main() {
 
     if (existing && existing.length > 0) {
       const dbMatch = existing[0];
-      // Aktualizuj skóre a status
+      // Aktualizuj skóre a status (vč. penalt pokud zápas skončil remízou v playoff)
+      const penaltyPatch = {};
+      if (g.home_penalty_score !== undefined && g.home_penalty_score !== null && g.home_penalty_score !== '') {
+        penaltyPatch.penalty_home_score = parseInt(g.home_penalty_score) || 0;
+        penaltyPatch.penalty_away_score = parseInt(g.away_penalty_score) || 0;
+      }
       await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', {
         status,
         home_score: homeScore,
         away_score: awayScore,
+        ...penaltyPatch,
       });
 
       // Sync gólů pro dokončené zápasy
@@ -484,6 +541,9 @@ async function main() {
   }
 
   console.log(`✅ Aktualizováno ${updated} zápasů, ${goalsTotal} gólů`);
+
+  // Propaguj vítěze/poražené dokončených zápasů do navazujících playoff zápasů (bracket)
+  await propagateBracketWinners();
 
   // Přepočítej body
   try {
