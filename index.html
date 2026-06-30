@@ -859,7 +859,12 @@
     </div>
 
     <div class="filter-bar">
-      <div class="pill active" onclick="filterMatches('playoff',this)">Play off</div>
+      <div class="pill active" onclick="filterMatches('r32',this)">Playoff 1/32</div>
+      <div class="pill" onclick="filterMatches('r16',this)">Playoff 1/16</div>
+      <div class="pill" onclick="filterMatches('qf',this)">Čtvrtfinále</div>
+      <div class="pill" onclick="filterMatches('sf',this)">Semifinále</div>
+      <div class="pill" onclick="filterMatches('third',this)">O 3. místo</div>
+      <div class="pill" onclick="filterMatches('final',this)">Finále</div>
       <div class="pill" onclick="filterMatches('skupina',this)">Základní část</div>
       <div class="pill" onclick="filterMatches('live',this)">Live</div>
       <div class="pill" onclick="filterMatches('neodehrane',this)">Neodehrané</div>
@@ -1132,7 +1137,7 @@
   let quotaPlayoffUsed = 0;
   let currentMatchId = null;
   let modalSelected = new Set();
-  let currentFilter = 'playoff';
+  let currentFilter = 'r32';
   let currentOthersFilter = 'vse';
 
   // ── Match data (načítá se z DB) ──
@@ -1343,7 +1348,7 @@
     app.style.display = window.innerWidth >= 900 ? 'grid' : 'block';
     app.classList.add('app-visible');
 
-    renderMatches('playoff');
+    renderMatches('r32');
     renderOthers('vse');
     renderPrizePool();
     renderPreTournament();
@@ -1951,6 +1956,7 @@
       if (f === 'odehrane') return m.status === 'done' || m.status === 'live';
       if (f === 'skupina') return m.group?.startsWith('Skupina');
       if (f === 'playoff') return !m.group?.startsWith('Skupina');
+      if (['r32','r16','qf','sf','third','final'].includes(f)) return m.phase === f;
       return true;
     });
     if (!filtered.length) { list.innerHTML = '<div class="empty">Žádné zápasy</div>'; return; }
