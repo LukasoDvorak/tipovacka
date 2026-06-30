@@ -1,4 +1,4 @@
-const CACHE = 'tipovacka-v4';
+const CACHE = 'tipovacka-v5';
 const ASSETS = ['/tipovacka/', '/tipovacka/index.html'];
 
 self.addEventListener('install', e => {
@@ -7,7 +7,11 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(clients.claim());
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => clients.claim())
+  );
 });
 
 self.addEventListener('fetch', e => {
@@ -16,7 +20,7 @@ self.addEventListener('fetch', e => {
   if (!e.request.url.startsWith(self.location.origin)) return;
 
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-store' })
       .then(r => {
         const clone = r.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
