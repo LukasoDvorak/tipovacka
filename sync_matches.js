@@ -192,6 +192,47 @@ const GROUP_NAME_MAP = {
   qf: 'QUARTER_FINALS', sf: 'SEMI_FINALS', third: 'THIRD_PLACE', final: 'FINAL',
 };
 
+// Načte ESPN scoreboard pro dané datum a vrátí mapu team→{isAET, homeScore, awayScore}
+// STATUS_FINAL_AET = zápas šel do prodloužení
+let espnCache = {};
+async function loadEspnAetData(dateStr) {
+  // dateStr = "20260701"
+  if (espnCache[dateStr]) return espnCache[dateStr];
+  const result = {};
+  try {
+    const res = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`
+    );
+    if (!res.ok) return result;
+    const data = await res.json();
+    for (const event of data.events || []) {
+      const comp = event.competitions?.[0];
+      if (!comp) continue;
+      const isAET = comp.status?.type?.name === 'STATUS_FINAL_AET';
+      const competitors = comp.competitors || [];
+      const home = competitors.find(c => c.homeAway === 'home');
+      const away = competitors.find(c => c.homeAway === 'away');
+      if (home && away) {
+        const key = `${event.name}`; // "Senegal at Belgium"
+        result[key] = { isAET, homeScore: parseInt(home.score), awayScore: parseInt(away.score) };
+        // Indexuj i obráceně pro snadnější hledání
+        result[`${home.team?.displayName}_${away.team?.displayName}`] = { isAET, homeScore: parseInt(home.score), awayScore: parseInt(away.score) };
+      }
+    }
+  } catch (e) {
+    console.warn('   ⚠️ ESPN fetch selhal:', e.message);
+  }
+  espnCache[dateStr] = result;
+  return result;
+}
+
+function espnDateKey(localDate) {
+  // localDate = "07/01/2026 13:00" → "20260701"
+  const m = localDate.match(/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) return null;
+  return `${m[3]}${m[1].padStart(2,'0')}${m[2].padStart(2,'0')}`;
+}
+
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 2000) {
   for (let i = 0; i < retries; i++) {
     try {
@@ -487,21 +528,48 @@ async function main() {
     if (existing && existing.length > 0) {
       const dbMatch = existing[0];
       // Aktualizuj skóre a status
-      // is_et_win = true → skóre bylo ručně opraveno na 90min výsledek, nepřepisovat
+      // is_et_win = true → skóre bylo již opraveno (ručně nebo automaticky), nepřepisovat
       if (dbMatch.is_et_win) {
         await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { status });
-      } else {
-        const penaltyPatch = {};
-        if (g.home_penalty_score !== undefined && g.home_penalty_score !== null && g.home_penalty_score !== '' && g.home_penalty_score !== 'null') {
-          penaltyPatch.penalty_home_score = parseInt(g.home_penalty_score) || 0;
-          penaltyPatch.penalty_away_score = parseInt(g.away_penalty_score) || 0;
+      } else if (status === 'done' && phase !== 'group') {
+        // Playoff zápas: zkontroluj ESPN jestli nešel do prodloužení (AET)
+        const hasPenalties = g.home_penalty_score !== undefined && g.home_penalty_score !== null
+          && g.home_penalty_score !== '' && g.home_penalty_score !== 'null';
+        let scorePatch = { status, home_score: homeScore, away_score: awayScore };
+
+        if (!hasPenalties) {
+          // Bez penalt — mohl jít do ET bez penalt, zkontroluj ESPN
+          const dateKey = espnDateKey(g.local_date);
+          if (dateKey) {
+            const espnData = await loadEspnAetData(dateKey);
+            // Hledej zápas v ESPN datech (home_name_away_name)
+            const espnKey = Object.keys(espnData).find(k =>
+              k.includes(homeTeam.name) || k.includes(awayTeam.name)
+            );
+            const espnMatch = espnKey ? espnData[espnKey] : null;
+            if (espnMatch?.isAET) {
+              // Potvrzeno: zápas šel do ET. 90min skóre = počet střelců (ET gól chybí v API)
+              const homeScorers90 = parseScorers(g.home_scorers, homeTeam.name).length;
+              const awayScorers90 = parseScorers(g.away_scorers, awayTeam.name).length;
+              console.log(`   ⏱️ AET detekováno: ${homeTeam.name} vs ${awayTeam.name} — 90min ${homeScorers90}:${awayScorers90}, ET ${homeScore}:${awayScore}`);
+              scorePatch = {
+                status,
+                home_score: homeScorers90,
+                away_score: awayScorers90,
+                penalty_home_score: homeScore,
+                penalty_away_score: awayScore,
+                is_et_win: true,
+              };
+            }
+          }
+        } else {
+          scorePatch.penalty_home_score = parseInt(g.home_penalty_score) || 0;
+          scorePatch.penalty_away_score = parseInt(g.away_penalty_score) || 0;
         }
-        await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', {
-          status,
-          home_score: homeScore,
-          away_score: awayScore,
-          ...penaltyPatch,
-        });
+
+        await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', scorePatch);
+      } else {
+        await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { status, home_score: homeScore, away_score: awayScore });
       }
 
       // Sync gólů pro dokončené zápasy
