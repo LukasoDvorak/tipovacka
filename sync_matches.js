@@ -456,14 +456,14 @@ async function main() {
 
     // Najdi zápas v Supabase — nejdřív podle jmen, pak podle kickoff_at pro playoff TBD
     let existing = await supabaseFetch(
-      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&away_team=ilike.*${encodeURIComponent(awayTeam.name)}*&select=id,status,home_score,highlight_url,home_team`,
+      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&away_team=ilike.*${encodeURIComponent(awayTeam.name)}*&select=id,status,home_score,highlight_url,home_team,is_et_win`,
       'GET'
     );
     // Fallback pro playoff: najdi podle group_name + kickoff_at (pro TBD zápasy)
     if ((!existing || existing.length === 0) && groupName) {
       const apiKickoff = new Date(g.local_date.replace(/(\d+)\/(\d+)\/(\d+) (.+)/, '$3-$1-$2T$4:00Z'));
       const byGroup = await supabaseFetch(
-        `/rest/v1/matches?group_name=eq.${groupName}&select=id,status,home_score,highlight_url,home_team,kickoff_at`,
+        `/rest/v1/matches?group_name=eq.${groupName}&select=id,status,home_score,highlight_url,home_team,kickoff_at,is_et_win`,
         'GET'
       );
       if (byGroup && byGroup.length > 0) {
@@ -486,18 +486,23 @@ async function main() {
 
     if (existing && existing.length > 0) {
       const dbMatch = existing[0];
-      // Aktualizuj skóre a status (vč. penalt pokud zápas skončil remízou v playoff)
-      const penaltyPatch = {};
-      if (g.home_penalty_score !== undefined && g.home_penalty_score !== null && g.home_penalty_score !== '') {
-        penaltyPatch.penalty_home_score = parseInt(g.home_penalty_score) || 0;
-        penaltyPatch.penalty_away_score = parseInt(g.away_penalty_score) || 0;
+      // Aktualizuj skóre a status
+      // is_et_win = true → skóre bylo ručně opraveno na 90min výsledek, nepřepisovat
+      if (dbMatch.is_et_win) {
+        await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { status });
+      } else {
+        const penaltyPatch = {};
+        if (g.home_penalty_score !== undefined && g.home_penalty_score !== null && g.home_penalty_score !== '' && g.home_penalty_score !== 'null') {
+          penaltyPatch.penalty_home_score = parseInt(g.home_penalty_score) || 0;
+          penaltyPatch.penalty_away_score = parseInt(g.away_penalty_score) || 0;
+        }
+        await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', {
+          status,
+          home_score: homeScore,
+          away_score: awayScore,
+          ...penaltyPatch,
+        });
       }
-      await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', {
-        status,
-        home_score: homeScore,
-        away_score: awayScore,
-        ...penaltyPatch,
-      });
 
       // Sync gólů pro dokončené zápasy
       if (status === 'done') {
