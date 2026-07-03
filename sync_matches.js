@@ -281,6 +281,7 @@ const GARBLED_NAMES = {
   'markvs hlmgrn pdrsn': 'Markus Holmgren Pedersen',
   'dnil mvnvz': 'Daniel Muñoz',
   'j. mcginn': 'John McGinn',
+  'gvnchalv ramvs': 'Gonçalo Ramos',
 };
 
 function matchPlayerName(apiName, playersList) {
@@ -579,7 +580,8 @@ async function main() {
         const allGoals = [...homeScorers, ...awayScorers];
 
         if (allGoals.length > 0) {
-          await supabaseFetch(`/rest/v1/goals?match_id=eq.${dbMatch.id}`, 'DELETE');
+          // Smaž jen automaticky syncované góly (is_manual=false nebo null), ruční zachovej
+          await supabaseFetch(`/rest/v1/goals?match_id=eq.${dbMatch.id}&is_manual=neq.true`, 'DELETE');
           const goalRows = allGoals.map(gl => ({
             match_id: dbMatch.id,
             player_name: matchPlayerName(gl.player_name, players),
