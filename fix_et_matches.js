@@ -22,6 +22,7 @@ async function sbFetch(path, method, body) {
 // Seznam ET zápasů: [home_team_fragment, away_team_fragment, 90min_home, 90min_away, et_home, et_away]
 const ET_MATCHES = [
   ['Belgium', 'Senegal', 2, 2, 3, 2],
+  ['Argentina', 'Cape Verde', 1, 1, 3, 2],
   // Přidej sem další ET zápasy pokud nastanou
 ];
 
