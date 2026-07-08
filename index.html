@@ -575,6 +575,22 @@
       font-size: 10px; font-weight: 700; background: rgba(239,68,68,.2); color: var(--red);
       margin-left: 6px;
     }
+    /* Audit tabulka */
+    .audit-table { border-collapse: collapse; font-size: 12px; white-space: nowrap; min-width: 100%; }
+    .audit-table th { position: sticky; top: 0; background: var(--card); padding: 8px 10px; border-bottom: 2px solid var(--border); font-size: 11px; font-weight: 700; text-align: center; z-index: 2; }
+    .audit-table th:first-child { text-align: left; position: sticky; left: 0; z-index: 3; min-width: 160px; }
+    .audit-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: center; }
+    .audit-table td:first-child { text-align: left; position: sticky; left: 0; background: var(--card); z-index: 1; font-size: 11px; color: var(--muted); border-right: 1px solid var(--border); min-width: 160px; }
+    .audit-table tr:hover td { background: var(--hover); }
+    .audit-table tr:hover td:first-child { background: var(--hover); }
+    .audit-table .audit-pts { font-weight: 700; }
+    .audit-table .audit-pts-7 { color: #f59e0b; }
+    .audit-table .audit-pts-5 { color: var(--green); }
+    .audit-table .audit-pts-2 { color: var(--accent); }
+    .audit-table .audit-pts-0 { color: var(--muted); }
+    .audit-table tfoot td { font-weight: 700; font-size: 13px; border-top: 2px solid var(--border); position: sticky; bottom: 0; background: var(--card); z-index: 1; }
+    .audit-table tfoot td:first-child { position: sticky; left: 0; z-index: 3; }
+    .audit-phase { font-size: 9px; color: var(--muted); display: block; }
     .admin-section-title {
       font-size: 11px; font-weight: 700; color: var(--muted);
       text-transform: uppercase; letter-spacing: .8px; margin: 20px 0 10px;
@@ -798,6 +814,7 @@
     <div class="nav-tab" onclick="switchTab('ostatni')" id="tab-ostatni">Ostatní</div>
     <div class="nav-tab" onclick="switchTab('msinfo')" id="tab-msinfo">MS Info</div>
     <div class="nav-tab" onclick="switchTab('pravidla')" id="tab-pravidla">Pravidla</div>
+    <div class="nav-tab" onclick="switchTab('audit')" id="tab-audit">Audit</div>
     <div class="nav-tab" onclick="switchTab('admin')" id="tab-admin" style="color:#ef4444;display:none">Admin</div>
   </div>
 
@@ -820,6 +837,9 @@
     </div>
     <div class="sidebar-item" onclick="switchTab('pravidla')" id="dsk-pravidla">
       <span class="sidebar-icon">📋</span> Pravidla
+    </div>
+    <div class="sidebar-item" onclick="switchTab('audit')" id="dsk-audit">
+      <span class="sidebar-icon">📊</span> Audit bodů
     </div>
     <div class="sidebar-divider"></div>
     <div class="sidebar-item admin-item" onclick="switchTab('admin')" id="dsk-admin" style="display:none">
@@ -899,6 +919,15 @@
       <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6">Po zaplacení kontaktuj admina pro schválení.</div>
     </div>
 
+  </div>
+
+  <!-- AUDIT BODŮ -->
+  <div class="page" id="page-audit">
+    <div class="section-title">Audit bodů — zápasy × hráči</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Každá buňka = body za výsledek + střelce v daném zápase. Scroll doprava pro všechny hráče.</div>
+    <div id="audit-content" style="overflow-x:auto">
+      <div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Načítám…</div>
+    </div>
   </div>
 
   <!-- TURNAJ (pre-tournament) -->
@@ -1921,6 +1950,88 @@
   }
 
   // ── Tabs ──
+  let auditLoaded = false;
+  async function loadAudit() {
+    if (auditLoaded) return;
+    const el = document.getElementById('audit-content');
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Načítám…</div>';
+
+    const [matches, tips, scorerTips, leaderboard, preTips] = await Promise.all([
+      sb.from('matches').select('id,home_team,away_team,home_score,away_score,phase,kickoff_at').eq('status','done').order('kickoff_at'),
+      sb.from('tips').select('user_id,match_id,home_score,away_score,points'),
+      sb.from('scorer_tips').select('user_id,match_id,points').gt('points', 0),
+      sb.from('leaderboard').select('id,display_name,total_points').order('total_points', { ascending: false }),
+      sb.from('pre_tips').select('user_id,winner_points,finalist_points,scorer_points,goals_team_points,cards_points'),
+    ]);
+
+    const users = leaderboard.data || [];
+    const matchList = matches.data || [];
+
+    // Index tipů: userId_matchId → {pts, tip}
+    const tipIdx = {};
+    for (const t of (tips.data || [])) {
+      tipIdx[`${t.user_id}_${t.match_id}`] = { pts: t.points || 0, tip: `${t.home_score}:${t.away_score}` };
+    }
+    // Index střeleckých bodů: userId_matchId → sum pts
+    const scorerIdx = {};
+    for (const s of (scorerTips.data || [])) {
+      const k = `${s.user_id}_${s.match_id}`;
+      scorerIdx[k] = (scorerIdx[k] || 0) + (s.points || 0);
+    }
+    // Index předturnajových bodů
+    const preIdx = {};
+    for (const p of (preTips.data || [])) {
+      preIdx[p.user_id] = (p.winner_points||0)+(p.finalist_points||0)+(p.scorer_points||0)+(p.goals_team_points||0)+(p.cards_points||0);
+    }
+
+    const phaseLabel = { group:'ZČ', r32:'1/16', r16:'1/8', qf:'QF', sf:'SF', third:'3.m', final:'FIN' };
+
+    // Součty za hráče (z match tipů + střelci + předturnajové)
+    const userTotals = {};
+    for (const u of users) userTotals[u.id] = u.total_points || 0;
+
+    let html = '<table class="audit-table"><thead><tr>';
+    html += '<th>Zápas</th>';
+    for (const u of users) html += `<th title="${u.display_name}">${u.display_name.split(' ')[0]}</th>`;
+    html += '</tr></thead><tbody>';
+
+    for (const m of matchList) {
+      const homeClean = (m.home_team || '').replace(/^\S+\s/, '');
+      const awayClean = (m.away_team || '').replace(/^\S+\s/, '');
+      const result = `${m.home_score}:${m.away_score}`;
+      const phase = phaseLabel[m.phase] || m.phase;
+      html += `<tr><td><span class="audit-phase">${phase} · ${result}</span>${homeClean} – ${awayClean}</td>`;
+      for (const u of users) {
+        const t = tipIdx[`${u.id}_${m.id}`];
+        const spts = scorerIdx[`${u.id}_${m.id}`] || 0;
+        const tipPts = t?.pts || 0;
+        const total = tipPts + spts;
+        let cls = total >= 7 ? 'audit-pts-7' : total >= 5 ? 'audit-pts-5' : total >= 2 ? 'audit-pts-2' : 'audit-pts-0';
+        const tipStr = t ? `<span style="font-size:10px;color:var(--muted)">${t.tip}</span><br>` : '';
+        const scorerStr = spts > 0 ? `<span style="font-size:10px;color:var(--green)">+${spts}⚽</span>` : '';
+        html += `<td>${tipStr}<span class="audit-pts ${cls}">${total > 0 ? total+'b' : scorerStr || '<span style="color:var(--muted)">–</span>'}</span>${spts > 0 && tipPts > 0 ? scorerStr : ''}</td>`;
+      }
+      html += '</tr>';
+    }
+
+    // Předturnajové řádek
+    html += `<tr><td><span class="audit-phase">předturnajové tipy</span>Vítěz / finalista / góly / karty</td>`;
+    for (const u of users) {
+      const pts = preIdx[u.id] || 0;
+      html += `<td><span class="audit-pts ${pts > 0 ? 'audit-pts-5' : 'audit-pts-0'}">${pts > 0 ? pts+'b' : '–'}</span></td>`;
+    }
+    html += '</tr>';
+
+    html += '</tbody><tfoot><tr><td>CELKEM</td>';
+    for (const u of users) {
+      html += `<td>${userTotals[u.id]}b</td>`;
+    }
+    html += '</tr></tfoot></table>';
+
+    el.innerHTML = html;
+    auditLoaded = true;
+  }
+
   function switchTab(name) {
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.sidebar-item').forEach(t => t.classList.remove('active'));
@@ -1935,6 +2046,7 @@
     if (rightPanel) rightPanel.style.display = name === 'msinfo' ? 'none' : '';
     if (name === 'pretournament') { loadPreTournamentOptions().then(() => renderPreTournament()); }
     if (name === 'admin' && currentUser) { renderAdminUsers(); renderAdminRequests(); renderAdminMatches(); renderAdminPreTips(); }
+    if (name === 'audit') loadAudit();
   }
 
   // ── Match rendering ──
