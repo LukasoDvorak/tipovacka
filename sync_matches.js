@@ -171,6 +171,11 @@ function matchStatus(g) {
   if (g.finished === 'TRUE') return 'done';
   const t = (g.time_elapsed || '').toLowerCase();
   if (t === 'notstarted' || t === '' || t === '0') return 'open';
+  // Pojistka: pokud kickoff je v budoucnosti, nemůže být live (chyba API)
+  if (g.local_date) {
+    const kickoff = new Date(g.local_date.replace(/(\d+)\/(\d+)\/(\d+) (.+)/, '$3-$1-$2T$4:00Z'));
+    if (kickoff > new Date()) return 'open';
+  }
   return 'live';
 }
 
