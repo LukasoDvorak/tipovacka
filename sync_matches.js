@@ -171,12 +171,15 @@ function matchStatus(g) {
   if (g.finished === 'TRUE') return 'done';
   const t = (g.time_elapsed || '').toLowerCase();
   if (t === 'notstarted' || t === '' || t === '0') return 'open';
-  // Pojistka: pokud kickoff je v budoucnosti, nemůže být live (chyba API)
-  if (g.local_date) {
-    const kickoff = new Date(g.local_date.replace(/(\d+)\/(\d+)\/(\d+) (.+)/, '$3-$1-$2T$4:00Z'));
-    if (kickoff > new Date()) return 'open';
-  }
   return 'live';
+}
+
+// Pojistka: vrátí 'open' pokud kickoff_at z DB je ještě v budoucnosti
+function guardedStatus(apiStatus, dbKickoffAt) {
+  if (apiStatus === 'live' && dbKickoffAt) {
+    if (new Date(dbKickoffAt) > new Date()) return 'open';
+  }
+  return apiStatus;
 }
 
 function matchPhase(type) {
@@ -503,14 +506,14 @@ async function main() {
 
     // Najdi zápas v Supabase — nejdřív podle jmen, pak podle kickoff_at pro playoff TBD
     let existing = await supabaseFetch(
-      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&away_team=ilike.*${encodeURIComponent(awayTeam.name)}*&select=id,status,home_score,highlight_url,home_team,is_et_win`,
+      `/rest/v1/matches?home_team=ilike.*${encodeURIComponent(homeTeam.name)}*&away_team=ilike.*${encodeURIComponent(awayTeam.name)}*&select=id,status,home_score,highlight_url,home_team,is_et_win,kickoff_at`,
       'GET'
     );
     // Fallback pro playoff: najdi podle group_name + kickoff_at (pro TBD zápasy)
     if ((!existing || existing.length === 0) && groupName) {
       const apiKickoff = new Date(g.local_date.replace(/(\d+)\/(\d+)\/(\d+) (.+)/, '$3-$1-$2T$4:00Z'));
       const byGroup = await supabaseFetch(
-        `/rest/v1/matches?group_name=eq.${groupName}&select=id,status,home_score,highlight_url,home_team,kickoff_at,is_et_win`,
+        `/rest/v1/matches?group_name=eq.${groupName}&select=id,status,home_score,highlight_url,home_team,kickoff_at,is_et_win,kickoff_at`,
         'GET'
       );
       if (byGroup && byGroup.length > 0) {
@@ -533,15 +536,16 @@ async function main() {
 
     if (existing && existing.length > 0) {
       const dbMatch = existing[0];
+      const safeStatus = guardedStatus(status, dbMatch.kickoff_at);
       // Aktualizuj skóre a status
       // is_et_win = true → skóre bylo již opraveno (ručně nebo automaticky), nepřepisovat
       if (dbMatch.is_et_win) {
-        await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { status });
+        await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { status: safeStatus });
       } else if (status === 'done' && phase !== 'group') {
         // Playoff zápas: zkontroluj ESPN jestli nešel do prodloužení (AET)
         const hasPenalties = g.home_penalty_score !== undefined && g.home_penalty_score !== null
           && g.home_penalty_score !== '' && g.home_penalty_score !== 'null';
-        let scorePatch = { status, home_score: homeScore, away_score: awayScore };
+        let scorePatch = { status: safeStatus, home_score: homeScore, away_score: awayScore };
 
         if (!hasPenalties) {
           // Bez penalt — mohl jít do ET bez penalt, zkontroluj ESPN
@@ -559,7 +563,7 @@ async function main() {
               const awayScorers90 = parseScorers(g.away_scorers, awayTeam.name).length;
               console.log(`   ⏱️ AET detekováno: ${homeTeam.name} vs ${awayTeam.name} — 90min ${homeScorers90}:${awayScorers90}, ET ${homeScore}:${awayScore}`);
               scorePatch = {
-                status,
+                status: safeStatus,
                 home_score: homeScorers90,
                 away_score: awayScorers90,
                 penalty_home_score: homeScore,
@@ -575,7 +579,7 @@ async function main() {
 
         await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', scorePatch);
       } else {
-        await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { status, home_score: homeScore, away_score: awayScore });
+        await supabaseFetch(`/rest/v1/matches?id=eq.${dbMatch.id}`, 'PATCH', { status: safeStatus, home_score: homeScore, away_score: awayScore });
       }
 
       // Sync gólů pro dokončené zápasy
