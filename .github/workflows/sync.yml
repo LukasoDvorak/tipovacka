@@ -1,10 +1,7 @@
 name: Sync zápasů MS 2026
 
 on:
-  schedule:
-    - cron: '*/30 * * * *'  # každých 30 minut
-    - cron: '0 7 * * *'     # každý den v 9:00 CEST (7:00 UTC)
-  workflow_dispatch:          # možnost spustit ručně z GitHubu
+  workflow_dispatch:          # MS 2026 skončilo — sync vypnut, lze spustit ručně
 
 jobs:
   sync:
